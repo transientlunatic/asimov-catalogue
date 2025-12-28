@@ -165,8 +165,9 @@ function updateEventCount() {
 
 // Render D3 plot
 function renderD3Plot() {
-    // Clear previous plot
+    // Clear previous plot and tooltips
     d3.select('#d3-plot').selectAll('*').remove();
+    d3.selectAll('.d3-tooltip').remove();
     
     if (filteredEvents.length === 0) {
         d3.select('#d3-plot')
@@ -248,6 +249,7 @@ function renderD3Plot() {
     // Add tooltip
     const tooltip = d3.select('body')
         .append('div')
+        .attr('class', 'd3-tooltip')
         .style('position', 'absolute')
         .style('background', 'rgba(0, 0, 0, 0.8)')
         .style('color', 'white')
