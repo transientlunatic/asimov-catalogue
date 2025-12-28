@@ -1,0 +1,79 @@
+# Gravitational Wave Event Catalogue
+
+A web-based catalogue for gravitational wave detection events, providing an interactive interface to explore and analyze gravitational wave data.
+
+## Features
+
+- **Filterable Event Table**: Search and filter events by name, mass, and distance
+- **Sortable Columns**: Click on column headers to sort events
+- **Interactive D3.js Visualization**: Mass vs. Distance scatter plot with event details on hover
+- **Responsive Design**: Built with Bootstrap 5 for mobile and desktop compatibility
+- **Test Data**: Currently uses sample gravitational wave event data
+
+## Event Types
+
+- **BBH**: Binary Black Hole mergers
+- **BNS**: Binary Neutron Star mergers
+- **NSBH**: Neutron Star-Black Hole mergers
+
+## Technology Stack
+
+- **HTML5**: Structure and content
+- **Bootstrap 5**: Responsive CSS framework
+- **JavaScript (ES6+)**: Application logic
+- **D3.js v7**: Data visualization
+- **GitHub Pages**: Hosting and deployment
+
+## Local Development
+
+To run the website locally:
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/transientlunatic/asimov-catalogue.git
+   cd asimov-catalogue
+   ```
+
+2. Serve the files using a local web server. You can use Python's built-in server:
+   ```bash
+   python3 -m http.server 8000
+   ```
+   Or Node.js `http-server`:
+   ```bash
+   npx http-server
+   ```
+
+3. Open your browser and navigate to `http://localhost:8000`
+
+## Deployment
+
+The website is automatically deployed to GitHub Pages when changes are pushed to the `main` branch. The deployment workflow is configured in `.github/workflows/deploy.yml`.
+
+## Data Format
+
+The catalogue uses JSON format for event data. Each event includes:
+
+- `name`: Event identifier (e.g., "GW150914")
+- `detectionTime`: ISO 8601 timestamp
+- `mass1`: Primary object mass in solar masses (M☉)
+- `mass2`: Secondary object mass in solar masses (M☉)
+- `totalMass`: Combined mass in solar masses (M☉)
+- `distance`: Distance in megaparsecs (Mpc)
+- `significance`: Detection significance in sigma (σ)
+- `type`: Event type (BBH, BNS, or NSBH)
+
+## Future Enhancements
+
+- Integration with actual asimov catalogue data
+- Instructions for reproducing events with asimov
+- Interface to identify exceptional events
+- List of publications containing each event
+- Advanced filtering and analysis tools
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.

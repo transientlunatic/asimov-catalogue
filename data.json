@@ -1,0 +1,152 @@
+[
+    {
+        "name": "GW150914",
+        "detectionTime": "2015-09-14T09:50:45",
+        "mass1": 36.0,
+        "mass2": 29.0,
+        "totalMass": 65.0,
+        "distance": 410,
+        "significance": 5.1,
+        "type": "BBH"
+    },
+    {
+        "name": "GW151012",
+        "detectionTime": "2015-10-12T09:54:43",
+        "mass1": 23.0,
+        "mass2": 13.0,
+        "totalMass": 36.0,
+        "distance": 1080,
+        "significance": 4.5,
+        "type": "BBH"
+    },
+    {
+        "name": "GW151226",
+        "detectionTime": "2015-12-26T03:38:53",
+        "mass1": 14.0,
+        "mass2": 7.5,
+        "totalMass": 21.5,
+        "distance": 440,
+        "significance": 5.0,
+        "type": "BBH"
+    },
+    {
+        "name": "GW170104",
+        "detectionTime": "2017-01-04T10:11:58",
+        "mass1": 31.0,
+        "mass2": 19.0,
+        "totalMass": 50.0,
+        "distance": 880,
+        "significance": 5.3,
+        "type": "BBH"
+    },
+    {
+        "name": "GW170608",
+        "detectionTime": "2017-06-08T02:01:16",
+        "mass1": 12.0,
+        "mass2": 7.0,
+        "totalMass": 19.0,
+        "distance": 340,
+        "significance": 4.8,
+        "type": "BBH"
+    },
+    {
+        "name": "GW170814",
+        "detectionTime": "2017-08-14T10:30:43",
+        "mass1": 30.5,
+        "mass2": 25.3,
+        "totalMass": 55.8,
+        "distance": 540,
+        "significance": 5.7,
+        "type": "BBH"
+    },
+    {
+        "name": "GW170817",
+        "detectionTime": "2017-08-17T12:41:04",
+        "mass1": 1.46,
+        "mass2": 1.27,
+        "totalMass": 2.73,
+        "distance": 40,
+        "significance": 5.9,
+        "type": "BNS"
+    },
+    {
+        "name": "GW170823",
+        "detectionTime": "2017-08-23T13:13:58",
+        "mass1": 39.0,
+        "mass2": 29.0,
+        "totalMass": 68.0,
+        "distance": 1850,
+        "significance": 4.6,
+        "type": "BBH"
+    },
+    {
+        "name": "GW190425",
+        "detectionTime": "2019-04-25T08:18:05",
+        "mass1": 1.89,
+        "mass2": 1.45,
+        "totalMass": 3.34,
+        "distance": 160,
+        "significance": 5.2,
+        "type": "BNS"
+    },
+    {
+        "name": "GW190521",
+        "detectionTime": "2019-05-21T03:02:29",
+        "mass1": 85.0,
+        "mass2": 66.0,
+        "totalMass": 151.0,
+        "distance": 5300,
+        "significance": 5.3,
+        "type": "BBH"
+    },
+    {
+        "name": "GW190814",
+        "detectionTime": "2019-08-14T21:10:39",
+        "mass1": 23.0,
+        "mass2": 2.6,
+        "totalMass": 25.6,
+        "distance": 241,
+        "significance": 5.4,
+        "type": "BBH"
+    },
+    {
+        "name": "GW191216",
+        "detectionTime": "2019-12-16T04:32:16",
+        "mass1": 10.0,
+        "mass2": 8.9,
+        "totalMass": 18.9,
+        "distance": 450,
+        "significance": 4.7,
+        "type": "BBH"
+    },
+    {
+        "name": "GW200105",
+        "detectionTime": "2020-01-05T16:46:15",
+        "mass1": 8.9,
+        "mass2": 1.9,
+        "totalMass": 10.8,
+        "distance": 280,
+        "significance": 5.1,
+        "type": "NSBH"
+    },
+    {
+        "name": "GW200115",
+        "detectionTime": "2020-01-15T04:23:09",
+        "mass1": 5.9,
+        "mass2": 1.44,
+        "totalMass": 7.34,
+        "distance": 320,
+        "significance": 5.0,
+        "type": "NSBH"
+    },
+    {
+        "name": "GW200210",
+        "detectionTime": "2020-02-10T12:58:26",
+        "mass1": 24.0,
+        "mass2": 15.0,
+        "totalMass": 39.0,
+        "distance": 620,
+        "significance": 4.9,
+        "type": "BBH"
+    }
+]
