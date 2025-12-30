@@ -266,9 +266,14 @@ function calculateStatistics(values) {
     const n = sorted.length;
     
     const mean = values.reduce((sum, val) => sum + val, 0) / n;
-    const median = sorted[Math.floor(n / 2)];
     
-    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / n;
+    // Calculate median (average of two middle values for even-length arrays)
+    const median = n % 2 === 0 
+        ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 
+        : sorted[Math.floor(n / 2)];
+    
+    // Calculate sample variance (using n-1 for unbiased estimator)
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
     const stdDev = Math.sqrt(variance);
     
     const ci5 = sorted[Math.floor(n * 0.05)];
