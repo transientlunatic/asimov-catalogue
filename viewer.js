@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadHDF5File(url) {
     try {
         // Initialize h5wasm
-        const { FS, ready } = await h5wasm.ready;
+        const { FS } = await h5wasm.ready;
         
         // Fetch the HDF5 file
         const response = await fetch(url);
@@ -216,6 +216,7 @@ function formatDateTime(dateTimeStr) {
 function setupEventListeners() {
     document.getElementById('parameterSelect').addEventListener('change', (e) => {
         currentParameter = e.target.value;
+        updatePlot(); // Auto-update when parameter changes
     });
     
     document.getElementById('updatePlot').addEventListener('click', updatePlot);
@@ -276,8 +277,9 @@ function calculateStatistics(values) {
     const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
     const stdDev = Math.sqrt(variance);
     
+    // Calculate confidence intervals with proper bounds checking
     const ci5 = sorted[Math.floor(n * 0.05)];
-    const ci95 = sorted[Math.floor(n * 0.95)];
+    const ci95 = sorted[Math.min(Math.floor(n * 0.95), n - 1)];
     
     return { mean, median, stdDev, ci5, ci95 };
 }
