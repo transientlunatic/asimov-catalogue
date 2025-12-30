@@ -31,19 +31,19 @@
                         </div>
                         <div class="col-md-6 col-lg-4">
                             <label for="minMass" class="form-label fw-semibold">Min Total Mass (M☉):</label>
-                            <input type="number" class="form-control" id="minMass" placeholder="0" step="0.1">
+                            <input type="number" class="form-control" id="minMass" placeholder="0" step="0.1" min="0">
                         </div>
                         <div class="col-md-6 col-lg-4">
                             <label for="maxMass" class="form-label fw-semibold">Max Total Mass (M☉):</label>
-                            <input type="number" class="form-control" id="maxMass" placeholder="1000" step="0.1">
+                            <input type="number" class="form-control" id="maxMass" placeholder="1000" step="0.1" min="0">
                         </div>
                         <div class="col-md-6 col-lg-4">
                             <label for="minDistance" class="form-label fw-semibold">Min Distance (Mpc):</label>
-                            <input type="number" class="form-control" id="minDistance" placeholder="0" step="1">
+                            <input type="number" class="form-control" id="minDistance" placeholder="0" step="1" min="0">
                         </div>
                         <div class="col-md-6 col-lg-4">
                             <label for="maxDistance" class="form-label fw-semibold">Max Distance (Mpc):</label>
-                            <input type="number" class="form-control" id="maxDistance" placeholder="10000" step="1">
+                            <input type="number" class="form-control" id="maxDistance" placeholder="10000" step="1" min="0">
                         </div>
                         <div class="col-md-6 col-lg-4 d-flex align-items-end">
                             <button id="resetFilters" class="btn btn-primary w-100">Reset Filters</button>
@@ -77,13 +77,14 @@
                         <table class="table table-hover table-striped mb-0" id="eventTable">
                             <thead class="table-primary">
                                 <tr>
-                                    <th data-sort="name" class="sortable">Event Name <span class="sort-icon">↕</span></th>
-                                    <th data-sort="detectionTime" class="sortable">Detection Time <span class="sort-icon">↕</span></th>
-                                    <th data-sort="mass1" class="sortable">Mass 1 (M☉) <span class="sort-icon">↕</span></th>
-                                    <th data-sort="mass2" class="sortable">Mass 2 (M☉) <span class="sort-icon">↕</span></th>
-                                    <th data-sort="totalMass" class="sortable">Total Mass (M☉) <span class="sort-icon">↕</span></th>
-                                    <th data-sort="distance" class="sortable">Distance (Mpc) <span class="sort-icon">↕</span></th>
-                                    <th data-sort="significance" class="sortable">Significance <span class="sort-icon">↕</span></th>
+                                    <th data-sort="name" class="sortable" aria-sort="none">Event Name <span class="sort-icon">↕</span></th>
+                                    <th data-sort="detectionTime" class="sortable" aria-sort="none">Detection Time <span class="sort-icon">↕</span></th>
+                                    <th data-sort="type" class="sortable" aria-sort="none">Type <span class="sort-icon">↕</span></th>
+                                    <th data-sort="mass1" class="sortable" aria-sort="none">Mass 1 (M☉) <span class="sort-icon">↕</span></th>
+                                    <th data-sort="mass2" class="sortable" aria-sort="none">Mass 2 (M☉) <span class="sort-icon">↕</span></th>
+                                    <th data-sort="totalMass" class="sortable" aria-sort="none">Total Mass (M☉) <span class="sort-icon">↕</span></th>
+                                    <th data-sort="distance" class="sortable" aria-sort="none">Distance (Mpc) <span class="sort-icon">↕</span></th>
+                                    <th data-sort="significance" class="sortable" aria-sort="none">Significance <span class="sort-icon">↕</span></th>
                                 </tr>
                             </thead>
                             <tbody id="eventTableBody">

@@ -3,6 +3,7 @@ let allEvents = [];
 let filteredEvents = [];
 let sortColumn = null;
 let sortDirection = 'asc';
+const TABLE_COLUMNS = 8; // Number of columns in the event table
 
 // Load data when page loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -18,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('eventTableBody').innerHTML = 
-            '<tr><td colspan="7" style="text-align: center; color: red;">Error loading event data</td></tr>';
+            `<tr><td colspan="${TABLE_COLUMNS}" style="text-align: center; color: red;">Error loading event data</td></tr>`;
     }
 });
 
@@ -95,6 +96,11 @@ function sortTable(column) {
         let aVal = a[column];
         let bVal = b[column];
         
+        // Handle null or undefined values
+        if (aVal == null && bVal == null) return 0;
+        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
+        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+        
         // Handle different data types
         if (typeof aVal === 'string') {
             aVal = aVal.toLowerCase();
@@ -109,11 +115,13 @@ function sortTable(column) {
     // Update sort indicators
     document.querySelectorAll('th[data-sort]').forEach(th => {
         th.classList.remove('sort-asc', 'sort-desc');
+        th.setAttribute('aria-sort', 'none');
     });
     
     const activeTh = document.querySelector(`th[data-sort="${column}"]`);
     if (activeTh) {
         activeTh.classList.add(`sort-${sortDirection}`);
+        activeTh.setAttribute('aria-sort', sortDirection === 'asc' ? 'ascending' : 'descending');
     }
     
     renderTable();
@@ -124,7 +132,7 @@ function renderTable() {
     const tbody = document.getElementById('eventTableBody');
     
     if (filteredEvents.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No events match the current filters</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${TABLE_COLUMNS}" style="text-align: center;">No events match the current filters</td></tr>`;
         return;
     }
     
@@ -132,6 +140,7 @@ function renderTable() {
         <tr>
             <td><strong>${event.name}</strong></td>
             <td>${formatDateTime(event.detectionTime)}</td>
+            <td><span class="badge bg-secondary">${event.type}</span></td>
             <td>${event.mass1.toFixed(2)}</td>
             <td>${event.mass2.toFixed(2)}</td>
             <td>${event.totalMass.toFixed(2)}</td>
@@ -179,9 +188,11 @@ function renderD3Plot() {
     }
     
     // Set dimensions
-    const margin = { top: 20, right: 120, bottom: 60, left: 60 };
+    const isSmallScreen = window.innerWidth < 768;
+    const margin = { top: 20, right: isSmallScreen ? 20 : 120, bottom: isSmallScreen ? 100 : 60, left: 60 };
     const width = Math.min(900, window.innerWidth - 100) - margin.left - margin.right;
-    const height = 400 - margin.top - margin.bottom;
+    const baseHeight = isSmallScreen ? 500 : 400;
+    const height = baseHeight - margin.top - margin.bottom;
     
     // Create SVG
     const svg = d3.select('#d3-plot')
@@ -246,18 +257,21 @@ function renderD3Plot() {
             .tickFormat('')
         );
     
-    // Add tooltip
-    const tooltip = d3.select('body')
-        .append('div')
-        .attr('class', 'd3-tooltip')
-        .style('position', 'absolute')
-        .style('background', 'rgba(0, 0, 0, 0.8)')
-        .style('color', 'white')
-        .style('padding', '10px')
-        .style('border-radius', '5px')
-        .style('pointer-events', 'none')
-        .style('opacity', 0)
-        .style('font-size', '12px');
+    // Add tooltip (reuse existing tooltip if present to avoid duplicates)
+    let tooltip = d3.select('body').select('.d3-tooltip');
+    if (tooltip.empty()) {
+        tooltip = d3.select('body')
+            .append('div')
+            .attr('class', 'd3-tooltip')
+            .style('position', 'absolute')
+            .style('background', 'rgba(0, 0, 0, 0.8)')
+            .style('color', 'white')
+            .style('padding', '10px')
+            .style('border-radius', '5px')
+            .style('pointer-events', 'none')
+            .style('opacity', 0)
+            .style('font-size', '12px');
+    }
     
     // Add circles
     svg.selectAll('circle')
@@ -299,9 +313,11 @@ function renderD3Plot() {
             tooltip.style('opacity', 0);
         });
     
-    // Add legend
+    // Add legend - position below plot on small screens, to the right on larger screens
     const legend = svg.append('g')
-        .attr('transform', `translate(${width + 10}, 0)`);
+        .attr('transform', isSmallScreen 
+            ? `translate(0, ${height + 50})` 
+            : `translate(${width + 10}, 0)`);
     
     const types = ['BBH', 'BNS', 'NSBH'];
     const typeNames = {
@@ -312,7 +328,9 @@ function renderD3Plot() {
     
     types.forEach((type, i) => {
         const legendRow = legend.append('g')
-            .attr('transform', `translate(0, ${i * 25})`);
+            .attr('transform', isSmallScreen 
+                ? `translate(${i * 150}, 0)` 
+                : `translate(0, ${i * 25})`);
         
         legendRow.append('circle')
             .attr('r', 6)
