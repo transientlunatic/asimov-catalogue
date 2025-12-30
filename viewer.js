@@ -209,9 +209,6 @@ async function extractParametersForAnalysis(file, analysisName) {
             throw new Error('No valid numeric parameters found in HDF5 file');
         }
         
-        // Store the samples path for later use
-        hdf5Data.samplesPath = samplesPath;
-        
         // Populate parameter dropdown
         const select = document.getElementById('parameterSelect');
         select.innerHTML = allParameters.map(param => 
@@ -231,6 +228,22 @@ async function extractParametersForAnalysis(file, analysisName) {
     } catch (error) {
         throw new Error(`Error extracting parameters: ${error.message}`);
     }
+}
+
+// Get the samples path for the current analysis
+function getSamplesPath(analysisName) {
+    try {
+        // Try <ANALYSIS>/posterior_samples first
+        const testPath = `${analysisName}/posterior_samples`;
+        const testGroup = hdf5Data.get(testPath);
+        if (testGroup) {
+            return testPath;
+        }
+    } catch (e) {
+        // Fall through to return analysisName
+    }
+    // analysisName might already be the full path to samples
+    return analysisName;
 }
 
 // Format analysis name for display
@@ -318,8 +331,14 @@ function updatePlot() {
             return;
         }
         
-        // Get the data for this parameter
-        const samplesGroup = hdf5Data.get(hdf5Data.samplesPath);
+        if (!currentAnalysis) {
+            showError('Please select an analysis');
+            return;
+        }
+        
+        // Get the correct samples path for current analysis
+        const samplesPath = getSamplesPath(currentAnalysis);
+        const samplesGroup = hdf5Data.get(samplesPath);
         const dataset = samplesGroup.get(parameter);
         const values = Array.from(dataset.value);
         
