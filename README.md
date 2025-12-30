@@ -77,6 +77,20 @@ The HDF5 data viewer allows you to explore posterior probability distributions f
 
 To access the viewer, click the "View Data" button next to any event in the catalogue table that has posterior samples available.
 
+### Troubleshooting
+
+If you encounter an error message stating "Failed to load h5wasm library", this is typically caused by:
+
+- **Ad blockers or privacy extensions**: Some browser extensions block CDN resources. Try disabling them for this site.
+- **Network connectivity issues**: Ensure you have a stable internet connection.
+- **Browser security settings**: Some strict security settings may prevent loading external scripts.
+
+**Solutions:**
+1. Disable ad blockers or privacy extensions for the site
+2. Check your internet connection
+3. Try a different browser (Chrome, Firefox, Edge, or Safari)
+4. Ensure JavaScript is enabled in your browser
+
 ## Future Enhancements
 
 - Integration with actual asimov catalogue data
