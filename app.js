@@ -97,9 +97,13 @@ function sortTable(column) {
         let bVal = b[column];
         
         // Handle null or undefined values
-        if (aVal == null && bVal == null) return 0;
-        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
-        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal === null || aVal === undefined) {
+            if (bVal === null || bVal === undefined) return 0;
+            return sortDirection === 'asc' ? 1 : -1;
+        }
+        if (bVal === null || bVal === undefined) {
+            return sortDirection === 'asc' ? -1 : 1;
+        }
         
         // Handle different data types
         if (typeof aVal === 'string') {
@@ -174,9 +178,8 @@ function updateEventCount() {
 
 // Render D3 plot
 function renderD3Plot() {
-    // Clear previous plot and tooltips
+    // Clear previous plot
     d3.select('#d3-plot').selectAll('*').remove();
-    d3.selectAll('.d3-tooltip').remove();
     
     if (filteredEvents.length === 0) {
         d3.select('#d3-plot')
