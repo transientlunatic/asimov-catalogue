@@ -1,0 +1,65 @@
+/* Custom styles to complement Bootstrap */
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+/* Header gradient */
+.bg-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Sortable table headers */
+.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.sortable:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sort-icon {
+    font-size: 0.8em;
+    margin-left: 5px;
+    opacity: 0.6;
+}
+
+.sortable.sort-asc .sort-icon::after {
+    content: ' ▲';
+    opacity: 1;
+}
+
+.sortable.sort-desc .sort-icon::after {
+    content: ' ▼';
+    opacity: 1;
+}
+
+/* D3 Plot styling */
+#d3-plot {
+    min-height: 400px;
+    overflow-x: auto;
+}
+
+#d3-plot svg {
+    display: block;
+    margin: 0 auto;
+}
+
+/* Ensure cards have shadow */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+/* Table primary header color matching theme */
+.table-primary {
+    --bs-table-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.table-primary th {
+    border-color: rgba(255, 255, 255, 0.2);
+}
