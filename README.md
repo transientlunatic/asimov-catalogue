@@ -79,7 +79,7 @@ To access the viewer, click the "View Data" button next to any event in the cata
 
 ### Troubleshooting
 
-If you encounter an error message stating "Failed to load h5wasm library", this is typically caused by:
+If you encounter error messages about failing to load libraries (h5wasm or D3.js), this is typically caused by:
 
 - **Ad blockers or privacy extensions**: Some browser extensions block CDN resources. Try disabling them for this site.
 - **Network connectivity issues**: Ensure you have a stable internet connection.
