@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test h5wasm loading</title>
+</head>
+<body>
+    <h1>Testing h5wasm</h1>
+    <div id="status">Loading...</div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/h5wasm@0.6.6/dist/h5wasm.js" onerror="handleScriptError()" onload="handleScriptLoad()"></script>
+    <script>
+        function handleScriptError() {
+            document.getElementById('status').textContent = 'Failed to load h5wasm from CDN';
+            console.error('h5wasm script failed to load');
+        }
+        
+        function handleScriptLoad() {
+            document.getElementById('status').textContent = 'h5wasm script tag loaded';
+            console.log('h5wasm script loaded, checking for h5wasm object:', typeof h5wasm);
+        }
+        
+        setTimeout(() => {
+            if (typeof h5wasm === 'undefined') {
+                document.getElementById('status').textContent = 'h5wasm not defined after script load';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
