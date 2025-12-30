@@ -66,9 +66,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         if (!eventName) {
-            showError('No event specified in URL. Please provide either:\n' +
-                     '• ?event=GW150914 (to load from catalogue)\n' +
-                     '• ?samplesUrl=https://... (to load a custom HDF5 file)');
+            // No URL parameters - show file upload option
+            showFileUploadOption();
             return;
         }
         
@@ -164,6 +163,108 @@ async function fetchWithCORSFallback(url) {
         `• All CORS proxy services are unavailable\n\n` +
         `Please verify the URL and try again later.`
     );
+}
+
+// Show file upload option when no URL parameters are provided
+function showFileUploadOption() {
+    document.getElementById('loadingIndicator').classList.add('d-none');
+    document.getElementById('fileUploadSection').classList.remove('d-none');
+    document.getElementById('eventName').textContent = 'Upload Posterior File';
+    document.title = 'Upload File - HDF5 Data Viewer';
+    
+    // Setup file upload listeners
+    const fileInput = document.getElementById('fileInput');
+    const loadFileButton = document.getElementById('loadFileButton');
+    
+    loadFileButton.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) {
+            showError('Please select a file to upload');
+            return;
+        }
+        
+        // Show loading
+        document.getElementById('fileUploadSection').classList.add('d-none');
+        document.getElementById('loadingIndicator').classList.remove('d-none');
+        
+        // Create event data for uploaded file
+        eventData = {
+            name: file.name.replace(/\.(h5|hdf5)$/i, ''),
+            type: 'Unknown',
+            detectionTime: 'Unknown'
+        };
+        
+        try {
+            await loadHDF5FileFromLocal(file);
+        } catch (error) {
+            console.error('Error loading local file:', error);
+            showError(`Failed to load file: ${error.message}`);
+            // Show upload section again on error
+            document.getElementById('loadingIndicator').classList.add('d-none');
+            document.getElementById('fileUploadSection').classList.remove('d-none');
+        }
+    });
+    
+    // Allow Enter key to trigger load
+    fileInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            loadFileButton.click();
+        }
+    });
+}
+
+// Load HDF5 file from local File object
+async function loadHDF5FileFromLocal(file) {
+    try {
+        // Initialize h5wasm
+        const { FS } = await h5wasm.ready;
+        
+        // Read the file as ArrayBuffer
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Validate HDF5 signature
+        if (uint8Array.length < 8) {
+            throw new Error('File too small to be a valid HDF5 file');
+        }
+        
+        const hdf5Signature = [0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a];
+        const isValidHDF5 = hdf5Signature.every((byte, idx) => uint8Array[idx] === byte);
+        
+        if (!isValidHDF5) {
+            throw new Error('Selected file is not a valid HDF5 file');
+        }
+        
+        // Write file to virtual filesystem
+        const filename = '/data.h5';
+        FS.writeFile(filename, uint8Array);
+        
+        // Open the file
+        const h5file = new h5wasm.File(filename, 'r');
+        hdf5Data = h5file;
+        
+        // Extract analyses and parameters
+        await extractAnalysesAndParameters(h5file);
+        
+        // Hide loading, show content
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        document.getElementById('eventInfo').classList.remove('d-none');
+        document.getElementById('parameterSelection').classList.remove('d-none');
+        document.getElementById('plotContainer').classList.remove('d-none');
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        // Display first analysis and parameter by default
+        if (allAnalyses.length > 0 && allParameters.length > 0) {
+            currentAnalysis = allAnalyses[0];
+            currentParameter = allParameters[0];
+            updatePlot();
+        }
+        
+    } catch (error) {
+        throw error;
+    }
 }
 
 // Load HDF5 file

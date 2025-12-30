@@ -82,14 +82,20 @@ To access the viewer:
 
 ### Using the Viewer
 
-The viewer supports two URL parameters:
+The viewer supports three ways to load posterior samples:
 
 1. **Load from catalogue**: `viewer.html?event=GW150914`
    - Loads the event data and HDF5 file from the catalogue
 
-2. **Load custom HDF5 file**: `viewer.html?samplesUrl=https://example.com/samples.h5`
+2. **Load custom HDF5 file from URL**: `viewer.html?samplesUrl=https://example.com/samples.h5`
    - Directly loads any HDF5 file from a URL
    - Useful for analyzing custom or external datasets
+
+3. **Upload local HDF5 file**: `viewer.html` (no parameters)
+   - Opens the viewer with a file upload interface
+   - Select an HDF5 file from your computer to analyze
+   - No need to host the file online
+   - All processing happens locally in your browser
 
 ### CORS Support
 
