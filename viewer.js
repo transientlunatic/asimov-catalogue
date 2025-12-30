@@ -232,6 +232,10 @@ async function extractParametersForAnalysis(file, analysisName) {
 
 // Get the samples path for the current analysis
 function getSamplesPath(analysisName) {
+    if (!hdf5Data) {
+        throw new Error('HDF5 data not loaded');
+    }
+    
     try {
         // Try <ANALYSIS>/posterior_samples first
         const testPath = `${analysisName}/posterior_samples`;
@@ -249,15 +253,21 @@ function getSamplesPath(analysisName) {
 // Format analysis name for display
 function formatAnalysisName(name) {
     // Clean up analysis names for display
-    return name
+    if (!name || typeof name !== 'string') {
+        return 'Unknown';
+    }
+    
+    const parts = name.split('/');
+    const lastPart = parts[parts.length - 1] || parts[parts.length - 2] || name;
+    
+    return lastPart
         .replace(/_/g, ' ')
         .replace(/([A-Z])/g, ' $1')
-        .split('/')
-        .pop() // Get last part of path
         .split(' ')
+        .filter(word => word.length > 0)
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ')
-        .trim();
+        .trim() || 'Unknown';
 }
 
 // Format parameter name for display
