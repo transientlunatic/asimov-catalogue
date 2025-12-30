@@ -91,19 +91,30 @@ The viewer supports two URL parameters:
    - Directly loads any HDF5 file from a URL
    - Useful for analyzing custom or external datasets
 
+### CORS Support
+
+The viewer automatically handles CORS (Cross-Origin Resource Sharing) issues when loading HDF5 files from external sources. When you load a file, the viewer:
+
+1. **First attempts direct fetch**: Tries to load the file directly from the provided URL
+2. **Automatic fallback**: If CORS blocks the direct request, automatically tries multiple CORS proxy services
+3. **Validation**: Verifies the downloaded file is a valid HDF5 file before processing
+
+This means you can load HDF5 files from sources like Zenodo, even if they don't have CORS headers configured.
+
 ### Troubleshooting
 
 All required libraries (h5wasm and D3.js) are now self-hosted to avoid CDN-related issues. If you still encounter problems:
 
 - **Network connectivity issues**: Ensure you have a stable internet connection to load HDF5 files from external sources.
-- **CORS restrictions**: The HDF5 file URL must support CORS (Cross-Origin Resource Sharing).
 - **Browser security settings**: Some strict security settings may prevent loading external files.
+- **Ad blockers**: Some ad blockers may interfere with CORS proxy services.
 
 **Solutions:**
-1. Ensure the HDF5 file is hosted on a server that supports CORS
-2. Check your internet connection
-3. Try a different browser (Chrome, Firefox, Edge, or Safari)
-4. Ensure JavaScript is enabled in your browser
+1. Check your internet connection
+2. Try a different browser (Chrome, Firefox, Edge, or Safari)
+3. Ensure JavaScript is enabled in your browser
+4. Temporarily disable ad blockers if files fail to load
+5. If all proxy services fail, contact the file host to enable CORS headers
 
 ## Future Enhancements
 
