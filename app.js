@@ -8,12 +8,30 @@ const TABLE_COLUMNS = 9; // Number of columns in the event table
 // Load data when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Check if D3.js is loaded (needed for visualization)
+        if (typeof d3 === 'undefined') {
+            console.warn('D3.js library not loaded. Visualization features will be disabled.');
+            const plotContainer = document.getElementById('d3-plot');
+            if (plotContainer) {
+                plotContainer.innerHTML = 
+                    '<div class="alert alert-warning" role="alert">' +
+                    '<strong>Visualization Unavailable:</strong> D3.js library failed to load. ' +
+                    'This may be due to ad blockers or network issues. The event table will still work.' +
+                    '</div>';
+            }
+        }
+        
         const response = await fetch('data.json');
         allEvents = await response.json();
         filteredEvents = [...allEvents];
         
         renderTable();
-        renderD3Plot();
+        
+        // Only render plot if D3.js is available
+        if (typeof d3 !== 'undefined') {
+            renderD3Plot();
+        }
+        
         updateEventCount();
         setupEventListeners();
     } catch (error) {
@@ -354,6 +372,9 @@ let resizeTimeout;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-        renderD3Plot();
+        // Only redraw plot if D3.js is available
+        if (typeof d3 !== 'undefined') {
+            renderD3Plot();
+        }
     }, 250);
 });
