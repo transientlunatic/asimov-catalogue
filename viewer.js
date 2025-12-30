@@ -23,7 +23,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         if (typeof d3 === 'undefined') {
-            showError('Failed to load D3.js library. Please check your internet connection and try again.');
+            showError('Failed to load D3.js library. This may be due to:\n' +
+                     '• Ad blockers or privacy extensions blocking CDN resources\n' +
+                     '• Network connectivity issues\n' +
+                     '• Browser security settings\n\n' +
+                     'Please try:\n' +
+                     '• Disabling ad blockers for this site\n' +
+                     '• Checking your internet connection\n' +
+                     '• Using a different browser');
             return;
         }
         
