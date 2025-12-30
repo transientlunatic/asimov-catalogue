@@ -7,6 +7,7 @@ A web-based catalogue for gravitational wave detection events, providing an inte
 - **Filterable Event Table**: Search and filter events by name, mass, and distance
 - **Sortable Columns**: Click on column headers to sort events
 - **Interactive D3.js Visualization**: Mass vs. Distance scatter plot with event details on hover
+- **HDF5 Data Viewer**: View and analyze posterior sample distributions from HDF5 files
 - **Responsive Design**: Built with Bootstrap 5 for mobile and desktop compatibility
 - **Test Data**: Currently uses sample gravitational wave event data
 
@@ -22,6 +23,7 @@ A web-based catalogue for gravitational wave detection events, providing an inte
 - **Bootstrap 5**: Responsive CSS framework
 - **JavaScript (ES6+)**: Application logic
 - **D3.js v7**: Data visualization
+- **h5wasm**: HDF5 file reading in the browser
 - **GitHub Pages**: Hosting and deployment
 
 ## Local Development
@@ -61,6 +63,19 @@ The catalogue uses JSON format for event data. Each event includes:
 - `distance`: Distance in megaparsecs (Mpc)
 - `significance`: Detection significance in sigma (σ)
 - `type`: Event type (BBH, BNS, or NSBH)
+- `samplesUrl`: URL to HDF5 posterior samples file (optional)
+
+## HDF5 Data Viewer
+
+The HDF5 data viewer allows you to explore posterior probability distributions from gravitational wave event analyses. Features include:
+
+- **Direct HDF5 Loading**: Loads HDF5 files directly in the browser using h5wasm (no server-side conversion needed)
+- **Interactive Histograms**: View posterior distributions for any parameter with adjustable bin sizes
+- **Statistical Summary**: Displays mean, median, standard deviation, and 90% credible intervals
+- **Parameter Selection**: Browse all available parameters in the posterior samples
+- **Separate Page**: Loads in its own page to keep the main catalogue fast
+
+To access the viewer, click the "View Data" button next to any event in the catalogue table that has posterior samples available.
 
 ## Future Enhancements
 
@@ -69,6 +84,8 @@ The catalogue uses JSON format for event data. Each event includes:
 - Interface to identify exceptional events
 - List of publications containing each event
 - Advanced filtering and analysis tools
+- Multi-parameter scatter plots in the HDF5 viewer
+- Corner plots for parameter correlations
 
 ## License
 

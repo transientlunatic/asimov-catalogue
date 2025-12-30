@@ -7,7 +7,8 @@
         "totalMass": 65.0,
         "distance": 410,
         "significance": 5.1,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW150914_GWTC-1.hdf5"
     },
     {
         "name": "GW151012",
@@ -17,7 +18,8 @@
         "totalMass": 36.0,
         "distance": 1080,
         "significance": 4.5,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW151012_GWTC-2.hdf5"
     },
     {
         "name": "GW151226",
@@ -27,7 +29,8 @@
         "totalMass": 21.5,
         "distance": 440,
         "significance": 5.0,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW151226_GWTC-1.hdf5"
     },
     {
         "name": "GW170104",
@@ -37,7 +40,8 @@
         "totalMass": 50.0,
         "distance": 880,
         "significance": 5.3,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170104_GWTC-1.hdf5"
     },
     {
         "name": "GW170608",
@@ -47,7 +51,8 @@
         "totalMass": 19.0,
         "distance": 340,
         "significance": 4.8,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170608_GWTC-1.hdf5"
     },
     {
         "name": "GW170814",
@@ -57,7 +62,8 @@
         "totalMass": 55.8,
         "distance": 540,
         "significance": 5.7,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170814_GWTC-1.hdf5"
     },
     {
         "name": "GW170817",
@@ -67,7 +73,8 @@
         "totalMass": 2.73,
         "distance": 40,
         "significance": 5.9,
-        "type": "BNS"
+        "type": "BNS",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170817_GWTC-1.hdf5"
     },
     {
         "name": "GW170823",
@@ -77,7 +84,8 @@
         "totalMass": 68.0,
         "distance": 1850,
         "significance": 4.6,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170823_GWTC-2.hdf5"
     },
     {
         "name": "GW190425",
@@ -87,7 +95,8 @@
         "totalMass": 3.34,
         "distance": 160,
         "significance": 5.2,
-        "type": "BNS"
+        "type": "BNS",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW190425_GWTC-2.hdf5"
     },
     {
         "name": "GW190521",
@@ -97,7 +106,8 @@
         "totalMass": 151.0,
         "distance": 5300,
         "significance": 5.3,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW190521_GWTC-2.hdf5"
     },
     {
         "name": "GW190814",
@@ -107,7 +117,8 @@
         "totalMass": 25.6,
         "distance": 241,
         "significance": 5.4,
-        "type": "NSBH"
+        "type": "NSBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW190814_GWTC-2.hdf5"
     },
     {
         "name": "GW191216",
@@ -117,7 +128,8 @@
         "totalMass": 18.9,
         "distance": 450,
         "significance": 4.7,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW191216_GWTC-2.hdf5"
     },
     {
         "name": "GW200105",
@@ -127,7 +139,8 @@
         "totalMass": 10.8,
         "distance": 280,
         "significance": 5.1,
-        "type": "NSBH"
+        "type": "NSBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW200105_GWTC-2.hdf5"
     },
     {
         "name": "GW200115",
@@ -137,7 +150,8 @@
         "totalMass": 7.34,
         "distance": 320,
         "significance": 5.0,
-        "type": "NSBH"
+        "type": "NSBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW200115_GWTC-2.hdf5"
     },
     {
         "name": "GW200210",
@@ -147,6 +161,7 @@
         "totalMass": 39.0,
         "distance": 620,
         "significance": 4.9,
-        "type": "BBH"
+        "type": "BBH",
+        "samplesUrl": "https://zenodo.org/records/8177023/files/GW200210_GWTC-2.hdf5"
     }
 ]
