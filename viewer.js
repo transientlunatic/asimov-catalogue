@@ -9,6 +9,24 @@ let allAnalyses = [];
 // Initialize the viewer when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Check if required dependencies are loaded
+        if (typeof h5wasm === 'undefined') {
+            showError('Failed to load h5wasm library. This may be due to:\n' +
+                     '• Ad blockers or privacy extensions blocking CDN resources\n' +
+                     '• Network connectivity issues\n' +
+                     '• Browser security settings\n\n' +
+                     'Please try:\n' +
+                     '• Disabling ad blockers for this site\n' +
+                     '• Checking your internet connection\n' +
+                     '• Using a different browser');
+            return;
+        }
+        
+        if (typeof d3 === 'undefined') {
+            showError('Failed to load D3.js library. Please check your internet connection and try again.');
+            return;
+        }
+        
         // Get event name from URL parameter
         const urlParams = new URLSearchParams(window.location.search);
         const eventName = urlParams.get('event');
@@ -489,7 +507,10 @@ function renderHistogram(values, numBins, parameter) {
 function showError(message) {
     document.getElementById('loadingIndicator').classList.add('d-none');
     document.getElementById('errorMessage').classList.remove('d-none');
-    document.getElementById('errorText').textContent = message;
+    const errorTextElement = document.getElementById('errorText');
+    // Preserve line breaks in error messages
+    errorTextElement.style.whiteSpace = 'pre-wrap';
+    errorTextElement.textContent = message;
 }
 
 // Redraw plot on window resize
