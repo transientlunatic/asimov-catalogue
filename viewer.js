@@ -93,19 +93,85 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+// Fetch file with CORS fallback
+async function fetchWithCORSFallback(url) {
+    // List of CORS proxy services to try
+    const corsProxies = [
+        '', // Try direct fetch first
+        'https://corsproxy.io/?',
+        'https://api.allorigins.win/raw?url='
+    ];
+    
+    let lastError = null;
+    
+    for (let i = 0; i < corsProxies.length; i++) {
+        const proxy = corsProxies[i];
+        const fetchUrl = proxy + encodeURIComponent(url);
+        const actualUrl = proxy === '' ? url : fetchUrl;
+        
+        try {
+            console.log(`Attempting to fetch from: ${actualUrl}`);
+            const response = await fetch(actualUrl);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const arrayBuffer = await response.arrayBuffer();
+            
+            // Validate that we got a valid HDF5 file (check magic bytes)
+            const uint8Array = new Uint8Array(arrayBuffer);
+            if (uint8Array.length < 8) {
+                throw new Error('File too small to be a valid HDF5 file');
+            }
+            
+            // HDF5 files start with the signature: \x89HDF\r\n\x1a\n
+            const hdf5Signature = [0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a];
+            const isValidHDF5 = hdf5Signature.every((byte, idx) => uint8Array[idx] === byte);
+            
+            if (!isValidHDF5) {
+                throw new Error('Response is not a valid HDF5 file');
+            }
+            
+            if (proxy !== '') {
+                console.log(`Successfully fetched file using CORS proxy: ${proxy}`);
+            } else {
+                console.log('Successfully fetched file directly (no proxy needed)');
+            }
+            
+            return arrayBuffer;
+            
+        } catch (error) {
+            lastError = error;
+            console.warn(`Failed to fetch with ${proxy === '' ? 'direct fetch' : 'proxy ' + proxy}: ${error.message}`);
+            
+            // If this was a CORS error on direct fetch, continue to try proxies
+            // For other errors on proxy attempts, also continue
+            continue;
+        }
+    }
+    
+    // All attempts failed
+    throw new Error(
+        `Failed to fetch HDF5 file after trying all methods.\n\n` +
+        `URL: ${url}\n\n` +
+        `Last error: ${lastError.message}\n\n` +
+        `This may be due to:\n` +
+        `• The file URL is incorrect or inaccessible\n` +
+        `• The server is down or blocking requests\n` +
+        `• All CORS proxy services are unavailable\n\n` +
+        `Please verify the URL and try again later.`
+    );
+}
+
 // Load HDF5 file
 async function loadHDF5File(url) {
     try {
         // Initialize h5wasm
         const { FS } = await h5wasm.ready;
         
-        // Fetch the HDF5 file
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch HDF5 file: ${response.statusText}`);
-        }
-        
-        const arrayBuffer = await response.arrayBuffer();
+        // Fetch the HDF5 file with CORS fallback
+        const arrayBuffer = await fetchWithCORSFallback(url);
         const uint8Array = new Uint8Array(arrayBuffer);
         
         // Write file to virtual filesystem
