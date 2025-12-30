@@ -5,6 +5,7 @@ let currentParameter = null;
 let currentAnalysis = null;
 let allParameters = [];
 let allAnalyses = [];
+let eventListenersSetup = false;
 
 // CORS proxy services to try in order (after direct fetch)
 const CORS_PROXIES = [
@@ -172,11 +173,11 @@ function showFileUploadOption() {
     document.getElementById('eventName').textContent = 'Upload Posterior File';
     document.title = 'Upload File - HDF5 Data Viewer';
     
-    // Setup file upload listeners
-    const fileInput = document.getElementById('fileInput');
+    // Setup file upload listener
     const loadFileButton = document.getElementById('loadFileButton');
     
-    const handleFileLoad = async () => {
+    loadFileButton.addEventListener('click', async () => {
+        const fileInput = document.getElementById('fileInput');
         const file = fileInput.files[0];
         if (!file) {
             showError('Please select a file to upload');
@@ -203,12 +204,7 @@ function showFileUploadOption() {
             document.getElementById('loadingIndicator').classList.add('d-none');
             document.getElementById('fileUploadSection').classList.remove('d-none');
         }
-    };
-    
-    // Remove any existing listeners to prevent duplicates
-    loadFileButton.replaceWith(loadFileButton.cloneNode(true));
-    const newLoadButton = document.getElementById('loadFileButton');
-    newLoadButton.addEventListener('click', handleFileLoad);
+    }, { once: true }); // Use once option to prevent duplicate listeners
 }
 
 // Load HDF5 file from local File object
@@ -513,6 +509,12 @@ function formatDateTime(dateTimeStr) {
 
 // Setup event listeners
 function setupEventListeners() {
+    // Only setup listeners once
+    if (eventListenersSetup) {
+        return;
+    }
+    eventListenersSetup = true;
+    
     // Analysis selection change handler
     document.getElementById('analysisSelect').addEventListener('change', async (e) => {
         currentAnalysis = e.target.value;
