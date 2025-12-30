@@ -37,9 +37,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Get event name from URL parameter
         const urlParams = new URLSearchParams(window.location.search);
         const eventName = urlParams.get('event');
+        const samplesUrl = urlParams.get('samplesUrl');
+        
+        // If direct samplesUrl is provided, use it
+        if (samplesUrl) {
+            // Update page title
+            document.getElementById('eventName').textContent = 'Custom Samples File';
+            document.title = 'Custom Samples - HDF5 Data Viewer';
+            
+            // Create a minimal event data object
+            eventData = {
+                name: 'Custom Sample',
+                type: 'Unknown',
+                detectionTime: 'Unknown',
+                samplesUrl: samplesUrl
+            };
+            
+            // Load HDF5 file
+            await loadHDF5File(samplesUrl);
+            return;
+        }
         
         if (!eventName) {
-            showError('No event specified in URL');
+            showError('No event specified in URL. Please provide either:\n' +
+                     '• ?event=GW150914 (to load from catalogue)\n' +
+                     '• ?samplesUrl=https://... (to load a custom HDF5 file)');
             return;
         }
         
@@ -309,7 +331,13 @@ function formatParameterName(name) {
 
 // Format date time
 function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr || dateTimeStr === 'Unknown') {
+        return 'Unknown';
+    }
     const date = new Date(dateTimeStr);
+    if (isNaN(date.getTime())) {
+        return 'Unknown';
+    }
     return date.toLocaleString('en-US', { 
         year: 'numeric', 
         month: 'short', 

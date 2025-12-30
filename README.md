@@ -73,20 +73,34 @@ The HDF5 data viewer allows you to explore posterior probability distributions f
 - **Interactive Histograms**: View posterior distributions for any parameter with adjustable bin sizes
 - **Statistical Summary**: Displays mean, median, standard deviation, and 90% credible intervals
 - **Parameter Selection**: Browse all available parameters in the posterior samples
+- **Custom URL Support**: Load any HDF5 file by providing a direct URL
 - **Separate Page**: Loads in its own page to keep the main catalogue fast
 
-To access the viewer, click the "View Data" button next to any event in the catalogue table that has posterior samples available.
+To access the viewer:
+- Click the "View Data" button next to any event in the catalogue table that has posterior samples available
+- Or load a custom HDF5 file directly: `viewer.html?samplesUrl=https://example.com/samples.h5`
+
+### Using the Viewer
+
+The viewer supports two URL parameters:
+
+1. **Load from catalogue**: `viewer.html?event=GW150914`
+   - Loads the event data and HDF5 file from the catalogue
+
+2. **Load custom HDF5 file**: `viewer.html?samplesUrl=https://example.com/samples.h5`
+   - Directly loads any HDF5 file from a URL
+   - Useful for analyzing custom or external datasets
 
 ### Troubleshooting
 
-If you encounter error messages about failing to load libraries (h5wasm or D3.js), this is typically caused by:
+All required libraries (h5wasm and D3.js) are now self-hosted to avoid CDN-related issues. If you still encounter problems:
 
-- **Ad blockers or privacy extensions**: Some browser extensions block CDN resources. Try disabling them for this site.
-- **Network connectivity issues**: Ensure you have a stable internet connection.
-- **Browser security settings**: Some strict security settings may prevent loading external scripts.
+- **Network connectivity issues**: Ensure you have a stable internet connection to load HDF5 files from external sources.
+- **CORS restrictions**: The HDF5 file URL must support CORS (Cross-Origin Resource Sharing).
+- **Browser security settings**: Some strict security settings may prevent loading external files.
 
 **Solutions:**
-1. Disable ad blockers or privacy extensions for the site
+1. Ensure the HDF5 file is hosted on a server that supports CORS
 2. Check your internet connection
 3. Try a different browser (Chrome, Firefox, Edge, or Safari)
 4. Ensure JavaScript is enabled in your browser

@@ -17,3 +17,7 @@ Thumbs.db
 
 # Build/deployment artifacts
 _site/
+
+# Node modules and package files
+node_modules/
+package-lock.json
