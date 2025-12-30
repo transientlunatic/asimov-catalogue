@@ -6,6 +6,13 @@ let currentAnalysis = null;
 let allParameters = [];
 let allAnalyses = [];
 
+// CORS proxy services to try in order (after direct fetch)
+const CORS_PROXIES = [
+    { url: '', encode: false },  // Try direct fetch first
+    { url: 'https://corsproxy.io/?', encode: false },  // corsproxy.io expects raw URL
+    { url: 'https://api.allorigins.win/raw?url=', encode: true }  // allorigins expects encoded URL
+];
+
 // Initialize the viewer when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -95,19 +102,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Fetch file with CORS fallback
 async function fetchWithCORSFallback(url) {
-    // List of CORS proxy services to try
-    const corsProxies = [
-        '', // Try direct fetch first
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url='
-    ];
-    
     let lastError = null;
     
-    for (let i = 0; i < corsProxies.length; i++) {
-        const proxy = corsProxies[i];
-        const fetchUrl = proxy + encodeURIComponent(url);
-        const actualUrl = proxy === '' ? url : fetchUrl;
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+        const proxy = CORS_PROXIES[i];
+        const proxyUrl = proxy.url;
+        const actualUrl = proxyUrl === '' 
+            ? url 
+            : proxyUrl + (proxy.encode ? encodeURIComponent(url) : url);
         
         try {
             console.log(`Attempting to fetch from: ${actualUrl}`);
@@ -133,8 +135,8 @@ async function fetchWithCORSFallback(url) {
                 throw new Error('Response is not a valid HDF5 file');
             }
             
-            if (proxy !== '') {
-                console.log(`Successfully fetched file using CORS proxy: ${proxy}`);
+            if (proxyUrl !== '') {
+                console.log(`Successfully fetched file using CORS proxy: ${proxyUrl}`);
             } else {
                 console.log('Successfully fetched file directly (no proxy needed)');
             }
@@ -143,7 +145,7 @@ async function fetchWithCORSFallback(url) {
             
         } catch (error) {
             lastError = error;
-            console.warn(`Failed to fetch with ${proxy === '' ? 'direct fetch' : 'proxy ' + proxy}: ${error.message}`);
+            console.warn(`Failed to fetch with ${proxyUrl === '' ? 'direct fetch' : 'proxy ' + proxyUrl}: ${error.message}`);
             
             // If this was a CORS error on direct fetch, continue to try proxies
             // For other errors on proxy attempts, also continue
