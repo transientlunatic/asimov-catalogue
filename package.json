@@ -2,7 +2,6 @@
   "name": "asimov-catalogue",
   "version": "1.0.0",
   "description": "A web-based catalogue for gravitational wave detection events, providing an interactive interface to explore and analyze gravitational wave data.",
-  "main": "app.js",
   "directories": {
     "lib": "lib"
   },

@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             eventData = {
                 name: 'Custom Sample',
                 type: 'Unknown',
-                detectionTime: new Date().toISOString(),
+                detectionTime: 'Unknown',
                 samplesUrl: samplesUrl
             };
             
@@ -331,7 +331,13 @@ function formatParameterName(name) {
 
 // Format date time
 function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr || dateTimeStr === 'Unknown') {
+        return 'Unknown';
+    }
     const date = new Date(dateTimeStr);
+    if (isNaN(date.getTime())) {
+        return 'Unknown';
+    }
     return date.toLocaleString('en-US', { 
         year: 'numeric', 
         month: 'short', 
