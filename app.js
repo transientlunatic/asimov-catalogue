@@ -3,7 +3,7 @@ let allEvents = [];
 let filteredEvents = [];
 let sortColumn = null;
 let sortDirection = 'asc';
-const TABLE_COLUMNS = 8; // Number of columns in the event table
+const TABLE_COLUMNS = 9; // Number of columns in the event table
 
 // Load data when page loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -150,6 +150,7 @@ function renderTable() {
             <td>${event.totalMass.toFixed(2)}</td>
             <td>${event.distance.toFixed(0)}</td>
             <td>${event.significance.toFixed(1)}</td>
+            <td>${event.samplesUrl ? `<a href="viewer.html?event=${encodeURIComponent(event.name)}" class="btn btn-sm btn-primary" target="_blank">View Data</a>` : '<span class="text-muted">N/A</span>'}</td>
         </tr>
     `).join('');
 }
