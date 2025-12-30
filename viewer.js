@@ -2,7 +2,9 @@
 let eventData = null;
 let hdf5Data = null;
 let currentParameter = null;
+let currentAnalysis = null;
 let allParameters = [];
+let allAnalyses = [];
 
 // Initialize the viewer when page loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -67,8 +69,8 @@ async function loadHDF5File(url) {
         const file = new h5wasm.File(filename, 'r');
         hdf5Data = file;
         
-        // Extract parameters and samples
-        await extractParameters(file);
+        // Extract analyses and parameters
+        await extractAnalysesAndParameters(file);
         
         // Hide loading, show content
         document.getElementById('loadingIndicator').classList.add('d-none');
@@ -79,8 +81,9 @@ async function loadHDF5File(url) {
         // Setup event listeners
         setupEventListeners();
         
-        // Display first parameter by default
-        if (allParameters.length > 0) {
+        // Display first analysis and parameter by default
+        if (allAnalyses.length > 0 && allParameters.length > 0) {
+            currentAnalysis = allAnalyses[0];
             currentParameter = allParameters[0];
             updatePlot();
         }
@@ -91,57 +94,101 @@ async function loadHDF5File(url) {
     }
 }
 
-// Extract parameters from HDF5 file
-async function extractParameters(file) {
+// Extract analyses and parameters from HDF5 file
+async function extractAnalysesAndParameters(file) {
     try {
-        // Common paths where posterior samples might be stored in HDF5 files
-        const possiblePaths = [
-            'posterior_samples',
-            'posterior',
-            'samples',
-            'IMRPhenomPv2/posterior_samples',
-            'C01:IMRPhenomPv2/posterior_samples',
-            'PublicationSamples/posterior_samples'
-        ];
+        // Get all top-level keys
+        const topLevelKeys = file.keys();
+        console.log('Top-level keys:', topLevelKeys);
         
-        let samplesGroup = null;
-        let samplesPath = null;
-        
-        // Try to find the samples group
-        for (const path of possiblePaths) {
+        // Find all analyses (groups that contain posterior_samples)
+        const analyses = [];
+        for (const key of topLevelKeys) {
             try {
-                if (file.get(path)) {
-                    samplesGroup = file.get(path);
-                    samplesPath = path;
-                    break;
+                const group = file.get(key);
+                if (group && typeof group.keys === 'function') {
+                    const subKeys = group.keys();
+                    // Check if this group has a posterior_samples subgroup
+                    if (subKeys.includes('posterior_samples')) {
+                        analyses.push(key);
+                    }
                 }
             } catch (e) {
-                // Path doesn't exist, continue
+                // Not a group or can't access, skip
                 continue;
             }
         }
         
-        if (!samplesGroup) {
-            // Fallback: list all top-level groups and datasets
-            const keys = file.keys();
-            console.log('Available top-level keys:', keys);
+        // If no analyses found with posterior_samples, try direct paths
+        if (analyses.length === 0) {
+            const possiblePaths = [
+                'posterior_samples',
+                'posterior',
+                'samples',
+                'PublicationSamples'
+            ];
             
-            // Try to find a group with 'posterior' or 'samples' in the name
-            for (const key of keys) {
-                if (key.toLowerCase().includes('posterior') || key.toLowerCase().includes('samples')) {
-                    try {
-                        samplesGroup = file.get(key);
-                        samplesPath = key;
+            for (const path of possiblePaths) {
+                try {
+                    const group = file.get(path);
+                    if (group) {
+                        // Treat this as an analysis with empty name
+                        analyses.push(path);
                         break;
-                    } catch (e) {
-                        continue;
                     }
+                } catch (e) {
+                    continue;
                 }
             }
         }
         
+        if (analyses.length === 0) {
+            throw new Error('Could not find any analysis datasets in HDF5 file. Please check the file structure.');
+        }
+        
+        allAnalyses = analyses;
+        console.log('Found analyses:', allAnalyses);
+        
+        // Populate analysis dropdown
+        const analysisSelect = document.getElementById('analysisSelect');
+        analysisSelect.innerHTML = allAnalyses.map(analysis => 
+            `<option value="${analysis}">${formatAnalysisName(analysis)}</option>`
+        ).join('');
+        
+        // Set current analysis to first one
+        currentAnalysis = allAnalyses[0];
+        
+        // Extract parameters for the first analysis
+        await extractParametersForAnalysis(file, currentAnalysis);
+        
+    } catch (error) {
+        throw new Error(`Error extracting analyses: ${error.message}`);
+    }
+}
+
+// Extract parameters for a specific analysis
+async function extractParametersForAnalysis(file, analysisName) {
+    try {
+        // Determine the path to posterior_samples
+        let samplesPath;
+        try {
+            // Try <ANALYSIS>/posterior_samples first
+            const testPath = `${analysisName}/posterior_samples`;
+            const testGroup = file.get(testPath);
+            if (testGroup) {
+                samplesPath = testPath;
+            } else {
+                // Maybe analysisName is already the full path to samples
+                samplesPath = analysisName;
+            }
+        } catch (e) {
+            // analysisName might already be the samples path
+            samplesPath = analysisName;
+        }
+        
+        const samplesGroup = file.get(samplesPath);
         if (!samplesGroup) {
-            throw new Error('Could not find posterior samples in HDF5 file. Please check the file structure.');
+            throw new Error(`Could not access posterior samples at ${samplesPath}`);
         }
         
         // Get parameter names
@@ -186,6 +233,20 @@ async function extractParameters(file) {
     }
 }
 
+// Format analysis name for display
+function formatAnalysisName(name) {
+    // Clean up analysis names for display
+    return name
+        .replace(/_/g, ' ')
+        .replace(/([A-Z])/g, ' $1')
+        .split('/')
+        .pop() // Get last part of path
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+        .trim();
+}
+
 // Format parameter name for display
 function formatParameterName(name) {
     // Convert snake_case or camelCase to Title Case
@@ -214,6 +275,24 @@ function formatDateTime(dateTimeStr) {
 
 // Setup event listeners
 function setupEventListeners() {
+    // Analysis selection change handler
+    document.getElementById('analysisSelect').addEventListener('change', async (e) => {
+        currentAnalysis = e.target.value;
+        // Re-extract parameters for the new analysis
+        try {
+            await extractParametersForAnalysis(hdf5Data, currentAnalysis);
+            // Update current parameter to first in new analysis
+            if (allParameters.length > 0) {
+                currentParameter = allParameters[0];
+                updatePlot();
+            }
+        } catch (error) {
+            console.error('Error loading analysis:', error);
+            showError(`Failed to load analysis: ${error.message}`);
+        }
+    });
+    
+    // Parameter selection change handler
     document.getElementById('parameterSelect').addEventListener('change', (e) => {
         currentParameter = e.target.value;
         updatePlot(); // Auto-update when parameter changes

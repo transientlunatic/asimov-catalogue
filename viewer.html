@@ -65,18 +65,24 @@
             <div class="card-body">
                 <h5 class="card-title mb-3">Parameter Selection</h5>
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label for="parameterSelect" class="form-label fw-semibold">Select Parameter:</label>
-                        <select class="form-select" id="parameterSelect">
-                            <option value="">Loading parameters...</option>
+                    <div class="col-md-4">
+                        <label for="analysisSelect" class="form-label fw-semibold">Analysis Dataset:</label>
+                        <select class="form-select" id="analysisSelect">
+                            <option value="">Loading analyses...</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label for="binsInput" class="form-label fw-semibold">Number of Bins:</label>
+                    <div class="col-md-4">
+                        <label for="parameterSelect" class="form-label fw-semibold">Parameter:</label>
+                        <select class="form-select" id="parameterSelect">
+                            <option value="">Select analysis first...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="binsInput" class="form-label fw-semibold">Bins:</label>
                         <input type="number" class="form-control" id="binsInput" value="50" min="10" max="200" step="10">
                     </div>
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button id="updatePlot" class="btn btn-primary w-100">Update Plot</button>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button id="updatePlot" class="btn btn-primary w-100">Update</button>
                     </div>
                 </div>
             </div>
