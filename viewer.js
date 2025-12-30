@@ -205,10 +205,13 @@ function showFileUploadOption() {
             await loadHDF5FileFromLocal(file);
         } catch (error) {
             console.error('Error loading local file:', error);
+            eventData = null;
             showError(`Failed to load file: ${error.message}`);
             // Show upload section again on error
             document.getElementById('loadingIndicator').classList.add('d-none');
             document.getElementById('fileUploadSection').classList.remove('d-none');
+            // Clear the file input for retry
+            fileInput.value = '';
         }
     });
 }
