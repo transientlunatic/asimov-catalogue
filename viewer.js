@@ -8,13 +8,6 @@ let allAnalyses = [];
 let eventListenersSetup = false;
 let uploadButtonListenerSetup = false;
 
-// CORS proxy services to try in order (after direct fetch)
-const CORS_PROXIES = [
-    { url: '', encode: false },  // Try direct fetch first
-    { url: 'https://corsproxy.io/?', encode: false },  // corsproxy.io expects raw URL
-    { url: 'https://api.allorigins.win/raw?url=', encode: true }  // allorigins expects encoded URL
-];
-
 // Initialize the viewer when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -104,54 +97,44 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Fetch file with CORS fallback
 async function fetchWithCORSFallback(url) {
     let lastError = null;
-    
-    for (let i = 0; i < CORS_PROXIES.length; i++) {
-        const proxy = CORS_PROXIES[i];
-        const proxyUrl = proxy.url;
-        const actualUrl = proxyUrl === '' 
-            ? url 
-            : proxyUrl + (proxy.encode ? encodeURIComponent(url) : url);
+
+    const actualUrl = url;
+    try {
+        console.log(`Attempting to fetch from: ${actualUrl}`);
+
+        const response = await fetch(actualUrl);
+        //const buffer = await response.arrayBuffer();
+        //console.log("Downloaded");
+        //console.log(buffer);
+        //FS.writeFile("tmp.h5", new Uint8Array(buffer));
+        //const response = await fetch(actualUrl);
         
-        try {
-            console.log(`Attempting to fetch from: ${actualUrl}`);
-            const response = await fetch(actualUrl);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const arrayBuffer = await response.arrayBuffer();
-            
-            // Validate that we got a valid HDF5 file (check magic bytes)
-            const uint8Array = new Uint8Array(arrayBuffer);
-            if (uint8Array.length < 8) {
-                throw new Error('File too small to be a valid HDF5 file');
-            }
-            
-            // HDF5 files start with the signature: \x89HDF\r\n\x1a\n
-            const hdf5Signature = [0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a];
-            const isValidHDF5 = hdf5Signature.every((byte, idx) => uint8Array[idx] === byte);
-            
-            if (!isValidHDF5) {
-                throw new Error('Response is not a valid HDF5 file');
-            }
-            
-            if (proxyUrl !== '') {
-                console.log(`Successfully fetched file using CORS proxy: ${proxyUrl}`);
-            } else {
-                console.log('Successfully fetched file directly (no proxy needed)');
-            }
-            
-            return arrayBuffer;
-            
-        } catch (error) {
-            lastError = error;
-            console.warn(`Failed to fetch with ${proxyUrl === '' ? 'direct fetch' : 'proxy ' + proxyUrl}: ${error.message}`);
-            
-            // If this was a CORS error on direct fetch, continue to try proxies
-            // For other errors on proxy attempts, also continue
-            continue;
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Validate that we got a valid HDF5 file (check magic bytes)
+        const uint8Array = new Uint8Array(arrayBuffer);
+        if (uint8Array.length < 8) {
+            throw new Error('File too small to be a valid HDF5 file');
+        }
+        
+        // HDF5 files start with the signature: \x89HDF\r\n\x1a\n
+        const hdf5Signature = [0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a];
+        const isValidHDF5 = hdf5Signature.every((byte, idx) => uint8Array[idx] === byte);
+        
+        if (!isValidHDF5) {
+            throw new Error('Response is not a valid HDF5 file');
+        }
+        
+        return arrayBuffer;
+        
+    } catch (error) {
+        lastError = error;
+        console.warn(`Failed to fetch: ${error.message}`);
+
     }
     
     // All attempts failed
@@ -325,7 +308,7 @@ async function extractAnalysesAndParameters(file) {
                     // Check if this group has a posterior_samples subgroup
                     if (subKeys.includes('posterior_samples')) {
                         analyses.push(key);
-                    }
+                      }
                 }
             } catch (e) {
                 // Not a group or can't access, skip
@@ -389,11 +372,10 @@ async function extractParametersForAnalysis(file, analysisName) {
             // Try <ANALYSIS>/posterior_samples first
             const testPath = `${analysisName}/posterior_samples`;
             const testGroup = file.get(testPath);
-            if (testGroup) {
-                samplesPath = testPath;
-            } else {
-                // Maybe analysisName is already the full path to samples
-                samplesPath = analysisName;
+            if (testGroup) { 
+                samplesPath = testPath; 
+            } else { 
+                samplesPath = analysisName; 
             }
         } catch (e) {
             // analysisName might already be the samples path
@@ -405,19 +387,28 @@ async function extractParametersForAnalysis(file, analysisName) {
             throw new Error(`Could not access posterior samples at ${samplesPath}`);
         }
         
-        // Get parameter names
-        const paramNames = samplesGroup.keys();
-        
-        // Filter out non-numeric parameters and sort
-        allParameters = paramNames.filter(name => {
-            try {
-                const dataset = samplesGroup.get(name);
-                // Check if it's a dataset with numeric data
-                return dataset && dataset.value && Array.isArray(dataset.value);
-            } catch (e) {
-                return false;
-            }
-        }).sort();
+        // Check if this is a dataset with compound type (structured array)
+        if (samplesGroup.type === 'Dataset' && samplesGroup.dtype && samplesGroup.dtype.compound_type) {
+            // Extract parameter names from compound type
+            const compoundType = samplesGroup.dtype.compound_type;
+            allParameters = compoundType.members.map(member => member.name); // Updated to get actual parameter names
+        } else if (typeof samplesGroup.keys === 'function') {
+            // It's a group with separate datasets for each parameter
+            const paramNames = samplesGroup.keys();
+            
+            // Filter out non-numeric parameters and sort
+            allParameters = paramNames.filter(name => {
+                try {
+                    const dataset = samplesGroup.get(name);
+                    // Check if it's a dataset with numeric data
+                    return dataset && dataset.value && Array.isArray(dataset.value);
+                } catch (e) {
+                    return false;
+                }
+            }).sort();
+        } else {
+            throw new Error('Unexpected HDF5 structure: posterior_samples is neither a compound dataset nor a group');
+        }
         
         if (allParameters.length === 0) {
             throw new Error('No valid numeric parameters found in HDF5 file');
@@ -429,9 +420,8 @@ async function extractParametersForAnalysis(file, analysisName) {
             `<option value="${param}">${formatParameterName(param)}</option>`
         ).join('');
         
-        // Get sample count from first parameter
-        const firstParam = samplesGroup.get(allParameters[0]);
-        const sampleCount = firstParam.value.length;
+        // Get sample count
+        const sampleCount = samplesGroup.shape[0];
         
         // Update event info
         document.getElementById('infoEventName').textContent = eventData.name;
@@ -558,9 +548,13 @@ function setupEventListeners() {
 
 // Update plot
 function updatePlot() {
+    // Show loading indicator
+    document.getElementById('loadingIndicator').classList.remove('d-none');
+    
     try {
         const parameter = currentParameter || document.getElementById('parameterSelect').value;
         const bins = parseInt(document.getElementById('binsInput').value) || 50;
+        const maxSamples = parseInt(document.getElementById('maxSamplesInput')?.value) || 2000;
         
         if (!parameter) {
             showError('Please select a parameter');
@@ -575,8 +569,53 @@ function updatePlot() {
         // Get the correct samples path for current analysis
         const samplesPath = getSamplesPath(currentAnalysis);
         const samplesGroup = hdf5Data.get(samplesPath);
-        const dataset = samplesGroup.get(parameter);
-        const values = Array.from(dataset.value);
+        
+        let values;
+        
+        // Check if it's a compound dataset or a group
+        if (samplesGroup.type === 'Dataset' && samplesGroup.dtype && samplesGroup.dtype.compound_type) {
+            // Compound dataset: extract the specific parameter column
+            const compoundType = samplesGroup.metadata.compound_type;
+            
+            var parameter_map = new Map();
+            var i = 0;
+            for (const member of compoundType.members){
+                parameter_map.set(member.name, i);
+                i++;
+            }
+
+            var paramIndex = parameter_map.get(parameter);
+
+            if (paramIndex === -1) {
+                throw new Error(`Parameter ${parameter} not found in dataset`);
+            }
+            
+            // Extract values for this parameter from all samples
+            const allData = samplesGroup.value;
+            values = allData.map(sample => sample[paramIndex]);
+
+        } else {
+            // Group with separate datasets
+            const dataset = samplesGroup.get(parameter);
+            values = Array.from(dataset.value);
+        }
+        
+        // Limit samples if necessary
+        if (values.length > maxSamples) {
+            const sampled = [];
+            const indices = new Set();
+            while (sampled.length < maxSamples) {
+                const idx = Math.floor(Math.random() * values.length);
+                if (!indices.has(idx)) {
+                    indices.add(idx);
+                    sampled.push(values[idx]);
+                }
+            }
+            values = sampled;
+        }
+        
+        // Update sample count display to reflect plotted samples
+        document.getElementById('infoSampleCount').textContent = values.length.toLocaleString();
         
         // Update plot title
         document.getElementById('plotTitle').textContent = 
@@ -589,7 +628,12 @@ function updatePlot() {
         // Render histogram
         renderHistogram(values, bins, parameter);
         
+        // Hide loading indicator after rendering
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        
     } catch (error) {
+        // Hide loading indicator on error
+        document.getElementById('loadingIndicator').classList.add('d-none');
         console.error('Error updating plot:', error);
         showError(`Failed to update plot: ${error.message}`);
     }
