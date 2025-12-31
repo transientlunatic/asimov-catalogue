@@ -8,7 +8,7 @@
         "distance": 410,
         "significance": 5.1,
         "type": "BBH",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW150914_GWTC-1.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW150914_095045_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW151012",
@@ -19,7 +19,7 @@
         "distance": 1080,
         "significance": 4.5,
         "type": "BBH",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW151012_GWTC-2.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW151012_095443_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW151226",
@@ -30,7 +30,7 @@
         "distance": 440,
         "significance": 5.0,
         "type": "BBH",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW151226_GWTC-1.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW151226_033853_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW170104",
@@ -41,7 +41,7 @@
         "distance": 880,
         "significance": 5.3,
         "type": "BBH",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170104_GWTC-1.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW170104_101158_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW170608",
@@ -52,7 +52,7 @@
         "distance": 340,
         "significance": 4.8,
         "type": "BBH",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170608_GWTC-1.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW170608_020116_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW170814",
@@ -63,7 +63,7 @@
         "distance": 540,
         "significance": 5.7,
         "type": "BBH",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170814_GWTC-1.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW170814_103043_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW170817",
@@ -85,7 +85,7 @@
         "distance": 1850,
         "significance": 4.6,
         "type": "BBH",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW170823_GWTC-2.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW170823_131358_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW190425",
@@ -96,7 +96,7 @@
         "distance": 160,
         "significance": 5.2,
         "type": "BNS",
-        "samplesUrl": "https://zenodo.org/records/8177023/files/GW190425_GWTC-2.hdf5"
+        "samplesUrl": "https://zenodo.org/records/6513631/files/IGWN-GWTC2p1-v2-GW190425_081805_PEDataRelease_mixed_nocosmo.h5/content"
     },
     {
         "name": "GW190521",
