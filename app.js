@@ -49,14 +49,37 @@ let showUncertainties = true;
 
 // Observing run mapping
 function getObservingRun(eventName) {
-    const year = parseInt(eventName.substring(2, 4));
-    const month = parseInt(eventName.substring(4, 6));
+    // Validate basic format: expect at least 6 characters so we can read YYMM
+    if (typeof eventName !== 'string' || eventName.length < 6) {
+        return 'Unknown';
+    }
+
+    const yearStr = eventName.substring(2, 4);
+    const monthStr = eventName.substring(4, 6);
+
+    // Ensure year and month substrings are numeric
+    if (!/^\d{2}$/.test(yearStr) || !/^\d{2}$/.test(monthStr)) {
+        return 'Unknown';
+    }
+
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+
+    // Validate month range
+    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+        return 'Unknown';
+    }
     
-    if (year === 15 || (year === 16 && month <= 1)) return 'O1';
-    if ((year === 16 && month >= 11) || year === 17) return 'O2';
-    if (year === 19 && month <= 9) return 'O3a';
-    if ((year === 19 && month >= 10) || (year === 20 && month <= 3)) return 'O3b';
-    if (year >= 23 || (year === 24 && month <= 1)) return 'O4a';
+    // O1: Sep 2015 - Jan 2016
+    if ((year === 15 && month >= 9) || (year === 16 && month <= 1)) return 'O1';
+    // O2: Nov 2016 - Aug 2017
+    if ((year === 16 && month >= 11) || (year === 17 && month <= 8)) return 'O2';
+    // O3a: Apr 2019 - Oct 2019
+    if (year === 19 && month >= 4 && month <= 10) return 'O3a';
+    // O3b: Nov 2019 - Mar 2020
+    if ((year === 19 && month >= 11) || (year === 20 && month <= 3)) return 'O3b';
+    // O4a: May 2023 - Jan 2024
+    if ((year === 23 && month >= 5) || (year === 24 && month <= 1)) return 'O4a';
     return 'Unknown';
 }
 
@@ -171,11 +194,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         filteredEvents = [...allEvents];
         
-        // Populate plot axis dropdowns
-        populatePlotAxisDropdowns();
-        
-        // Restore state from URL
+        // Restore state from URL (e.g., plot axes, filters) before initializing UI
         restoreStateFromURL();
+        
+        // Populate plot axis dropdowns using restored axis selections
+        populatePlotAxisDropdowns();
         
         // Apply filters based on restored state
         applyFilters();

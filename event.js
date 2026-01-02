@@ -70,14 +70,23 @@ async function loadEventDetails() {
         const event = events.find(e => e.name === eventName);
         
         if (!event) {
-            document.getElementById('eventDetails').innerHTML = 
-                `<div class="alert alert-danger">Event "${eventName}" not found.</div>`;
+            const eventDetailsEl = document.getElementById('eventDetails');
+            if (eventDetailsEl) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger';
+                alertDiv.textContent = 'Event "' + (eventName || 'unknown') + '" not found.';
+                eventDetailsEl.innerHTML = '';
+                eventDetailsEl.appendChild(alertDiv);
+            }
             return;
         }
 
         // Update page title and headers
-        document.title = `${event.name} - Event Details`;
-        document.getElementById('eventTitle').textContent = event.name;
+        document.title = event.name + ' - Event Details';
+        const eventTitleEl = document.getElementById('eventTitle');
+        if (eventTitleEl) {
+            eventTitleEl.textContent = event.name;
+        }
         document.getElementById('eventName').textContent = event.name;
         document.getElementById('breadcrumbEvent').textContent = event.name;
 
@@ -136,8 +145,15 @@ async function loadEventDetails() {
 
     } catch (error) {
         console.error('Error loading event details:', error);
-        document.getElementById('eventDetails').innerHTML = 
-            `<div class="alert alert-danger">Error loading event details: ${error.message}</div>`;
+        const eventDetailsEl = document.getElementById('eventDetails');
+        if (eventDetailsEl) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger';
+            const message = 'Error loading event details: ' + (error && error.message ? String(error.message) : '');
+            alertDiv.textContent = message;
+            eventDetailsEl.innerHTML = '';
+            eventDetailsEl.appendChild(alertDiv);
+        }
     }
 }
 
