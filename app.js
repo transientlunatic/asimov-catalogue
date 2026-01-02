@@ -49,37 +49,41 @@ let showUncertainties = true;
 
 // Observing run mapping
 function getObservingRun(eventName) {
-    // Validate basic format: expect at least 6 characters so we can read YYMM
-    if (typeof eventName !== 'string' || eventName.length < 6) {
+    // Validate basic format: expect at least 8 characters so we can read YYMMDD
+    if (typeof eventName !== 'string' || eventName.length < 8) {
         return 'Unknown';
     }
 
-    const yearStr = eventName.substring(2, 4);
-    const monthStr = eventName.substring(4, 6);
+    const dateStr = eventName.substring(2, 8); // Extract YYMMDD
 
-    // Ensure year and month substrings are numeric
-    if (!/^\d{2}$/.test(yearStr) || !/^\d{2}$/.test(monthStr)) {
+    // Ensure date string is numeric
+    if (!/^\d{6}$/.test(dateStr)) {
         return 'Unknown';
     }
 
-    const year = parseInt(yearStr, 10);
-    const month = parseInt(monthStr, 10);
+    const year = parseInt(dateStr.substring(0, 2), 10);
+    const month = parseInt(dateStr.substring(2, 4), 10);
+    const day = parseInt(dateStr.substring(4, 6), 10);
 
-    // Validate month range
-    if (isNaN(year) || isNaN(month) || month < 1 || month > 12) {
+    // Validate month and day ranges
+    if (isNaN(year) || isNaN(month) || isNaN(day) || 
+        month < 1 || month > 12 || day < 1 || day > 31) {
         return 'Unknown';
     }
     
-    // O1: Sep 2015 - Jan 2016
-    if ((year === 15 && month >= 9) || (year === 16 && month <= 1)) return 'O1';
-    // O2: Nov 2016 - Aug 2017
-    if ((year === 16 && month >= 11) || (year === 17 && month <= 8)) return 'O2';
-    // O3a: Apr 2019 - Oct 2019
-    if (year === 19 && month >= 4 && month <= 10) return 'O3a';
-    // O3b: Nov 2019 - Mar 2020
-    if ((year === 19 && month >= 11) || (year === 20 && month <= 3)) return 'O3b';
-    // O4a: May 2023 - Jan 2024
-    if ((year === 23 && month >= 5) || (year === 24 && month <= 1)) return 'O4a';
+    // Convert to YYMMDD integer for easier comparison
+    const dateInt = parseInt(dateStr, 10);
+    
+    // O1: Sep 12, 2015 - Jan 19, 2016 (150912 - 160119)
+    if (dateInt >= 150912 && dateInt <= 160119) return 'O1';
+    // O2: Nov 30, 2016 - Aug 25, 2017 (161130 - 170825)
+    if (dateInt >= 161130 && dateInt <= 170825) return 'O2';
+    // O3a: Apr 1, 2019 - Oct 1, 2019 (190401 - 191001)
+    if (dateInt >= 190401 && dateInt <= 191001) return 'O3a';
+    // O3b: Nov 1, 2019 - Mar 27, 2020 (191101 - 200327)
+    if (dateInt >= 191101 && dateInt <= 200327) return 'O3b';
+    // O4a: May 24, 2023 - Jan 16, 2024 (230524 - 240116)
+    if (dateInt >= 230524 && dateInt <= 240116) return 'O4a';
     return 'Unknown';
 }
 

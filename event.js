@@ -74,7 +74,7 @@ async function loadEventDetails() {
             if (eventDetailsEl) {
                 const alertDiv = document.createElement('div');
                 alertDiv.className = 'alert alert-danger';
-                alertDiv.textContent = 'Event "' + (eventName || 'unknown') + '" not found.';
+                alertDiv.textContent = `Event "${eventName || 'unknown'}" not found.`;
                 eventDetailsEl.innerHTML = '';
                 eventDetailsEl.appendChild(alertDiv);
             }
@@ -82,7 +82,7 @@ async function loadEventDetails() {
         }
 
         // Update page title and headers
-        document.title = event.name + ' - Event Details';
+        document.title = `${event.name} - Event Details`;
         const eventTitleEl = document.getElementById('eventTitle');
         if (eventTitleEl) {
             eventTitleEl.textContent = event.name;
@@ -149,8 +149,7 @@ async function loadEventDetails() {
         if (eventDetailsEl) {
             const alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-danger';
-            const message = 'Error loading event details: ' + (error && error.message ? String(error.message) : '');
-            alertDiv.textContent = message;
+            alertDiv.textContent = `Error loading event details: ${error?.message || ''}`;
             eventDetailsEl.innerHTML = '';
             eventDetailsEl.appendChild(alertDiv);
         }
