@@ -18,10 +18,10 @@ const PROPERTY_METADATA = {
     'chirp_mass_source': { label: 'Chirp Mass Source (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
     
     // Spin properties
-    'chi_eff': { label: 'χ_eff', unit: '', decimals: 3, group: 'spin' },
-    'chi_p': { label: 'χ_p', unit: '', decimals: 3, group: 'spin' },
-    'a_1': { label: 'a_1', unit: '', decimals: 3, group: 'spin' },
-    'a_2': { label: 'a_2', unit: '', decimals: 3, group: 'spin' },
+    'chi_eff': { label: 'χ<sub>eff</sub>', unit: '', decimals: 3, group: 'spin' },
+    'chi_p': { label: 'χ<sub>p</sub>', unit: '', decimals: 3, group: 'spin' },
+    'a_1': { label: 'a<sub>1</sub>', unit: '', decimals: 3, group: 'spin' },
+    'a_2': { label: 'a<sub>2</sub>', unit: '', decimals: 3, group: 'spin' },
     'spin_1z': { label: 'Spin 1z', unit: '', decimals: 3, group: 'spin' },
     'spin_2z': { label: 'Spin 2z', unit: '', decimals: 3, group: 'spin' },
     
@@ -90,8 +90,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupEventListeners();
     } catch (error) {
         console.error('Error loading data:', error);
-        document.getElementById('eventTableBody').innerHTML = 
-            `<tr><td colspan="10" style="text-align: center; color: red;">Error loading event data: ${error.message}</td></tr>`;
+        const errorCell = document.createElement('td');
+        errorCell.setAttribute('colspan', '10');
+        errorCell.style.textAlign = 'center';
+        errorCell.style.color = 'red';
+        errorCell.textContent = `Error loading event data: ${error.message}`;
+        const errorRow = document.createElement('tr');
+        errorRow.appendChild(errorCell);
+        document.getElementById('eventTableBody').innerHTML = '';
+        document.getElementById('eventTableBody').appendChild(errorRow);
     }
 });
 
@@ -103,6 +110,14 @@ function populatePlotAxisDropdowns() {
     // Get all available numeric properties (those with median values)
     if (allEvents.length === 0) {
         console.error('No events loaded');
+        // Add disabled placeholder option
+        const placeholderOption = document.createElement('option');
+        placeholderOption.textContent = 'No data available';
+        placeholderOption.disabled = true;
+        xAxisSelect.appendChild(placeholderOption.cloneNode(true));
+        yAxisSelect.appendChild(placeholderOption);
+        xAxisSelect.disabled = true;
+        yAxisSelect.disabled = true;
         return;
     }
     const sampleEvent = allEvents[0];
@@ -188,6 +203,15 @@ function setupEventListeners() {
     // Column selection checkboxes
     document.querySelectorAll('.column-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', updateSelectedColumns);
+    });
+    
+    // Table header click handler using event delegation
+    document.getElementById('tableHeaderRow').addEventListener('click', (e) => {
+        const th = e.target.closest('th[data-sort]');
+        if (th) {
+            const column = th.dataset.sort;
+            sortTable(column);
+        }
     });
 }
 
@@ -306,7 +330,7 @@ function formatValueWithUncertainty(propData, metadata) {
     const upper = propData.upper !== undefined ? Math.abs(propData.upper).toFixed(decimals) : null;
     
     if (lower !== null && upper !== null) {
-        return `${median}<sub class="text-muted small">-${lower}</sub><sup class="text-muted small">+${upper}</sup>`;
+        return `${median}<sub class="text-muted small">−${lower}</sub><sup class="text-muted small">+${upper}</sup>`;
     }
     
     return median;
@@ -327,14 +351,6 @@ function renderTable() {
     });
     
     headerRow.innerHTML = headers;
-    
-    // Add click handlers to new headers
-    document.querySelectorAll('th[data-sort]').forEach(th => {
-        th.addEventListener('click', () => {
-            const column = th.dataset.sort;
-            sortTable(column);
-        });
-    });
     
     // Build table rows
     if (filteredEvents.length === 0) {
@@ -366,7 +382,7 @@ function updateEventCount() {
 
 // Render D3 plot
 function renderD3Plot() {
-    // Clear previous plot
+    // Clear previous plot completely
     d3.select('#d3-plot').selectAll('*').remove();
     
     if (filteredEvents.length === 0) {
@@ -411,16 +427,53 @@ function renderD3Plot() {
     const xMetadata = PROPERTY_METADATA[plotXAxis] || { label: plotXAxis, decimals: 2 };
     const yMetadata = PROPERTY_METADATA[plotYAxis] || { label: plotYAxis, decimals: 2 };
     
-    // Scales
-    const xExtent = d3.extent(plotData, d => d.properties[plotXAxis].median);
-    const yExtent = d3.extent(plotData, d => d.properties[plotYAxis].median);
+    // Calculate data extents including uncertainties if shown
+    let xMin, xMax, yMin, yMax;
+    
+    if (showUncertainties) {
+        // Include error bars in the extent calculation
+        const xValues = plotData.flatMap(d => {
+            const median = d.properties[plotXAxis].median;
+            const lower = d.properties[plotXAxis].lower || 0;
+            const upper = d.properties[plotXAxis].upper || 0;
+            return [median - Math.abs(lower), median + Math.abs(upper)];
+        });
+        const yValues = plotData.flatMap(d => {
+            const median = d.properties[plotYAxis].median;
+            const lower = d.properties[plotYAxis].lower || 0;
+            const upper = d.properties[plotYAxis].upper || 0;
+            return [median - Math.abs(lower), median + Math.abs(upper)];
+        });
+        xMin = d3.min(xValues);
+        xMax = d3.max(xValues);
+        yMin = d3.min(yValues);
+        yMax = d3.max(yValues);
+    } else {
+        const xExtent = d3.extent(plotData, d => d.properties[plotXAxis].median);
+        const yExtent = d3.extent(plotData, d => d.properties[plotYAxis].median);
+        xMin = xExtent[0];
+        xMax = xExtent[1];
+        yMin = yExtent[0];
+        yMax = yExtent[1];
+    }
+    
+    // Add padding to the domain, ensuring non-negative values for mass properties
+    const xRange = xMax - xMin;
+    const yRange = yMax - yMin;
+    const xPadding = xRange * 0.1;
+    const yPadding = yRange * 0.1;
+    
+    // For mass properties, ensure domain doesn't go below 0
+    const isMassProperty = (prop) => PROPERTY_METADATA[prop]?.group === 'mass';
+    xMin = isMassProperty(plotXAxis) ? Math.max(0, xMin - xPadding) : xMin - xPadding;
+    yMin = isMassProperty(plotYAxis) ? Math.max(0, yMin - yPadding) : yMin - yPadding;
     
     const xScale = d3.scaleLinear()
-        .domain([xExtent[0] * 0.9, xExtent[1] * 1.1])
+        .domain([xMin, xMax + xPadding])
         .range([0, width]);
     
     const yScale = d3.scaleLinear()
-        .domain([yExtent[0] * 0.9, yExtent[1] * 1.1])
+        .domain([yMin, yMax + yPadding])
         .range([height, 0]);
     
     // Add axes
@@ -433,7 +486,7 @@ function renderD3Plot() {
         .attr('fill', 'black')
         .attr('font-size', '12px')
         .attr('text-anchor', 'middle')
-        .text(xMetadata.label);
+        .html(xMetadata.label);
     
     svg.append('g')
         .call(d3.axisLeft(yScale))
@@ -444,7 +497,7 @@ function renderD3Plot() {
         .attr('fill', 'black')
         .attr('font-size', '12px')
         .attr('text-anchor', 'middle')
-        .text(yMetadata.label);
+        .html(yMetadata.label);
     
     // Add grid lines
     svg.append('g')
@@ -492,12 +545,12 @@ function renderD3Plot() {
             .attr('x1', d => {
                 const median = d.properties[plotXAxis].median;
                 const lower = d.properties[plotXAxis].lower || 0;
-                return xScale(median + lower);
+                return xScale(median - Math.abs(lower));
             })
             .attr('x2', d => {
                 const median = d.properties[plotXAxis].median;
                 const upper = d.properties[plotXAxis].upper || 0;
-                return xScale(median + upper);
+                return xScale(median + Math.abs(upper));
             })
             .attr('y1', d => yScale(d.properties[plotYAxis].median))
             .attr('y2', d => yScale(d.properties[plotYAxis].median))
@@ -516,17 +569,33 @@ function renderD3Plot() {
             .attr('y1', d => {
                 const median = d.properties[plotYAxis].median;
                 const lower = d.properties[plotYAxis].lower || 0;
-                return yScale(median + lower);
+                return yScale(median - Math.abs(lower));
             })
             .attr('y2', d => {
                 const median = d.properties[plotYAxis].median;
                 const upper = d.properties[plotYAxis].upper || 0;
-                return yScale(median + upper);
+                return yScale(median + Math.abs(upper));
             })
             .attr('stroke', '#667eea')
             .attr('stroke-width', 1)
             .attr('opacity', 0.3);
     }
+    
+    // Helper function to format value for tooltip (plain text, no HTML)
+    const formatTooltipValue = (propData, metadata) => {
+        if (!propData || propData.median === undefined) {
+            return 'N/A';
+        }
+        const decimals = metadata?.decimals ?? 2;
+        const median = propData.median.toFixed(decimals);
+        const lower = propData.lower !== undefined ? Math.abs(propData.lower).toFixed(decimals) : null;
+        const upper = propData.upper !== undefined ? Math.abs(propData.upper).toFixed(decimals) : null;
+        
+        if (lower !== null && upper !== null) {
+            return `${median} (−${lower}, +${upper})`;
+        }
+        return median;
+    };
     
     // Add circles
     svg.selectAll('circle')
@@ -549,12 +618,16 @@ function renderD3Plot() {
             const xVal = d.properties[plotXAxis];
             const yVal = d.properties[plotYAxis];
             
+            // Create plain text tooltip content
+            const xLabel = xMetadata.label.replace(/<[^>]*>/g, ''); // Strip HTML tags
+            const yLabel = yMetadata.label.replace(/<[^>]*>/g, ''); // Strip HTML tags
+            
             tooltip
                 .style('opacity', 1)
                 .html(`
                     <strong>${d.name}</strong><br/>
-                    ${xMetadata.label}: ${formatValueWithUncertainty(xVal, xMetadata)}<br/>
-                    ${yMetadata.label}: ${formatValueWithUncertainty(yVal, yMetadata)}
+                    ${xLabel}: ${formatTooltipValue(xVal, xMetadata)}<br/>
+                    ${yLabel}: ${formatTooltipValue(yVal, yMetadata)}
                 `);
         })
         .on('mousemove', function(event) {
