@@ -50,6 +50,17 @@
                         <label for="maxDistance" class="form-label small fw-semibold">Max Distance (Mpc):</label>
                         <input type="number" class="form-control form-control-sm" id="maxDistance" placeholder="10000" step="1" min="0">
                     </div>
+                    <div class="mb-3">
+                        <label for="observingRun" class="form-label small fw-semibold">Observing Run:</label>
+                        <select class="form-select form-select-sm" id="observingRun">
+                            <option value="">All Runs</option>
+                            <option value="O1">O1 (Sep 2015 - Jan 2016)</option>
+                            <option value="O2">O2 (Nov 2016 - Aug 2017)</option>
+                            <option value="O3a">O3a (Apr 2019 - Oct 2019)</option>
+                            <option value="O3b">O3b (Nov 2019 - Mar 2020)</option>
+                            <option value="O4a">O4a (May 2023 - Jan 2024)</option>
+                        </select>
+                    </div>
                     <button id="resetFilters" class="btn btn-sm btn-primary w-100">Reset Filters</button>
                 </section>
 

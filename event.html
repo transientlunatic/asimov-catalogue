@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Details - Gravitational Wave Catalogue</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="bg-gradient text-white py-4 shadow-sm">
+        <div class="container-fluid">
+            <h1 class="display-5 mb-0">Gravitational Wave Event Catalogue</h1>
+            <p class="lead mb-0" id="eventTitle">Loading event details...</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+                        <li class="breadcrumb-item active" aria-current="page" id="breadcrumbEvent">Event</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0" id="eventName">Event Details</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="eventDetails">
+                            <p class="text-center">Loading event details...</p>
+                        </div>
+                        
+                        <!-- Data Links -->
+                        <div class="mt-4 pt-4 border-top" id="dataLinks">
+                            <h4>Data Access</h4>
+                            <p>HDF5 data for gravitational wave events is available from the following sources:</p>
+                            <ul>
+                                <li><a href="https://zenodo.org/records/6513631" target="_blank">GWTC-3 Data Release</a></li>
+                                <li><a href="https://zenodo.org/records/16053484" target="_blank">GWTC-4 Data Release</a></li>
+                                <li><a href="https://zenodo.org/records/8177023" target="_blank">Additional Data Release</a></li>
+                            </ul>
+                            <p class="text-muted small">Visit the <a href="https://www.gw-openscience.org/" target="_blank">Gravitational Wave Open Science Center</a> for more information and data viewer tools.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="event.js"></script>
+</body>
+</html>
