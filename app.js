@@ -47,6 +47,129 @@ let plotXAxis = 'luminosity_distance';
 let plotYAxis = 'total_mass';
 let showUncertainties = true;
 
+// Observing run mapping
+function getObservingRun(eventName) {
+    // Validate basic format: expect at least 8 characters so we can read YYMMDD
+    if (typeof eventName !== 'string' || eventName.length < 8) {
+        return 'Unknown';
+    }
+
+    const dateStr = eventName.substring(2, 8); // Extract YYMMDD
+
+    // Ensure date string is numeric
+    if (!/^\d{6}$/.test(dateStr)) {
+        return 'Unknown';
+    }
+
+    const year = parseInt(dateStr.substring(0, 2), 10);
+    const month = parseInt(dateStr.substring(2, 4), 10);
+    const day = parseInt(dateStr.substring(4, 6), 10);
+
+    // Validate month and day ranges
+    if (isNaN(year) || isNaN(month) || isNaN(day) || 
+        month < 1 || month > 12 || day < 1 || day > 31) {
+        return 'Unknown';
+    }
+    
+    // Convert to YYMMDD integer for easier comparison
+    const dateInt = parseInt(dateStr, 10);
+    
+    // O1: Sep 12, 2015 - Jan 19, 2016 (150912 - 160119)
+    if (dateInt >= 150912 && dateInt <= 160119) return 'O1';
+    // O2: Nov 30, 2016 - Aug 25, 2017 (161130 - 170825)
+    if (dateInt >= 161130 && dateInt <= 170825) return 'O2';
+    // O3a: Apr 1, 2019 - Oct 1, 2019 (190401 - 191001)
+    if (dateInt >= 190401 && dateInt <= 191001) return 'O3a';
+    // O3b: Nov 1, 2019 - Mar 27, 2020 (191101 - 200327)
+    if (dateInt >= 191101 && dateInt <= 200327) return 'O3b';
+    // O4a: May 24, 2023 - Jan 16, 2024 (230524 - 240116)
+    if (dateInt >= 230524 && dateInt <= 240116) return 'O4a';
+    return 'Unknown';
+}
+
+// URL State Management
+function getURLParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        search: params.get('search') || '',
+        minMass: params.get('minMass') || '',
+        maxMass: params.get('maxMass') || '',
+        minDistance: params.get('minDistance') || '',
+        maxDistance: params.get('maxDistance') || '',
+        observingRun: params.get('observingRun') || '',
+        plotX: params.get('plotX') || 'luminosity_distance',
+        plotY: params.get('plotY') || 'total_mass',
+        showUncertainties: params.get('showUncertainties') !== 'false',
+        columns: params.get('columns') ? params.get('columns').split(',') : null
+    };
+}
+
+function updateURL() {
+    const params = new URLSearchParams();
+    
+    // Add filter parameters
+    const search = document.getElementById('search').value;
+    if (search) params.set('search', search);
+    
+    const minMass = document.getElementById('minMass').value;
+    if (minMass) params.set('minMass', minMass);
+    
+    const maxMass = document.getElementById('maxMass').value;
+    if (maxMass) params.set('maxMass', maxMass);
+    
+    const minDistance = document.getElementById('minDistance').value;
+    if (minDistance) params.set('minDistance', minDistance);
+    
+    const maxDistance = document.getElementById('maxDistance').value;
+    if (maxDistance) params.set('maxDistance', maxDistance);
+    
+    const observingRun = document.getElementById('observingRun')?.value;
+    if (observingRun && observingRun !== '') params.set('observingRun', observingRun);
+    
+    // Add plot parameters
+    if (plotXAxis !== 'luminosity_distance') params.set('plotX', plotXAxis);
+    if (plotYAxis !== 'total_mass') params.set('plotY', plotYAxis);
+    if (!showUncertainties) params.set('showUncertainties', 'false');
+    
+    // Add column parameters
+    const defaultCols = DEFAULT_COLUMNS.join(',');
+    const currentCols = selectedColumns.join(',');
+    if (currentCols !== defaultCols) params.set('columns', currentCols);
+    
+    // Update URL without reloading page
+    const newURL = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newURL);
+}
+
+function restoreStateFromURL() {
+    const urlParams = getURLParams();
+    
+    // Restore filters
+    document.getElementById('search').value = urlParams.search;
+    document.getElementById('minMass').value = urlParams.minMass;
+    document.getElementById('maxMass').value = urlParams.maxMass;
+    document.getElementById('minDistance').value = urlParams.minDistance;
+    document.getElementById('maxDistance').value = urlParams.maxDistance;
+    if (document.getElementById('observingRun')) {
+        document.getElementById('observingRun').value = urlParams.observingRun;
+    }
+    
+    // Restore plot settings
+    plotXAxis = urlParams.plotX;
+    plotYAxis = urlParams.plotY;
+    showUncertainties = urlParams.showUncertainties;
+    document.getElementById('showUncertainties').checked = showUncertainties;
+    
+    // Restore columns if specified
+    if (urlParams.columns) {
+        selectedColumns = urlParams.columns;
+        // Update checkboxes
+        document.querySelectorAll('.column-checkbox').forEach(cb => {
+            cb.checked = selectedColumns.includes(cb.value);
+        });
+    }
+}
+
 // Load data when page loads
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -75,8 +198,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         filteredEvents = [...allEvents];
         
-        // Populate plot axis dropdowns
+        // Restore state from URL (e.g., plot axes, filters) before initializing UI
+        restoreStateFromURL();
+        
+        // Populate plot axis dropdowns using restored axis selections
         populatePlotAxisDropdowns();
+        
+        // Apply filters based on restored state
+        applyFilters();
         
         // Render initial view
         renderTable();
@@ -181,23 +310,37 @@ function setupEventListeners() {
     document.getElementById('minDistance').addEventListener('input', applyFilters);
     document.getElementById('maxDistance').addEventListener('input', applyFilters);
     
+    // Observing run filter
+    if (document.getElementById('observingRun')) {
+        document.getElementById('observingRun').addEventListener('change', applyFilters);
+    }
+    
     // Reset button
     document.getElementById('resetFilters').addEventListener('click', resetFilters);
     
     // Plot axis selection
     document.getElementById('plotXAxis').addEventListener('change', (e) => {
         plotXAxis = e.target.value;
-        renderD3Plot();
+        if (typeof d3 !== 'undefined') {
+            renderD3Plot();
+        }
+        updateURL();
     });
     
     document.getElementById('plotYAxis').addEventListener('change', (e) => {
         plotYAxis = e.target.value;
-        renderD3Plot();
+        if (typeof d3 !== 'undefined') {
+            renderD3Plot();
+        }
+        updateURL();
     });
     
     document.getElementById('showUncertainties').addEventListener('change', (e) => {
         showUncertainties = e.target.checked;
-        renderD3Plot();
+        if (typeof d3 !== 'undefined') {
+            renderD3Plot();
+        }
+        updateURL();
     });
     
     // Column selection checkboxes
@@ -220,6 +363,7 @@ function updateSelectedColumns() {
     selectedColumns = Array.from(document.querySelectorAll('.column-checkbox:checked'))
         .map(cb => cb.value);
     renderTable();
+    updateURL();
 }
 
 // Apply filters
@@ -229,6 +373,7 @@ function applyFilters() {
     const maxMass = parseFloat(document.getElementById('maxMass').value) || Infinity;
     const minDistance = parseFloat(document.getElementById('minDistance').value) || 0;
     const maxDistance = parseFloat(document.getElementById('maxDistance').value) || Infinity;
+    const observingRun = document.getElementById('observingRun')?.value || '';
     
     filteredEvents = allEvents.filter(event => {
         const matchesSearch = event.name.toLowerCase().includes(search);
@@ -238,13 +383,17 @@ function applyFilters() {
         
         const matchesMass = totalMass ? (totalMass >= minMass && totalMass <= maxMass) : true;
         const matchesDistance = distance ? (distance >= minDistance && distance <= maxDistance) : true;
+        const matchesRun = observingRun ? getObservingRun(event.name) === observingRun : true;
         
-        return matchesSearch && matchesMass && matchesDistance;
+        return matchesSearch && matchesMass && matchesDistance && matchesRun;
     });
     
     renderTable();
-    renderD3Plot();
+    if (typeof d3 !== 'undefined') {
+        renderD3Plot();
+    }
     updateEventCount();
+    updateURL();
 }
 
 // Reset filters
@@ -254,11 +403,17 @@ function resetFilters() {
     document.getElementById('maxMass').value = '';
     document.getElementById('minDistance').value = '';
     document.getElementById('maxDistance').value = '';
+    if (document.getElementById('observingRun')) {
+        document.getElementById('observingRun').value = '';
+    }
     
     filteredEvents = [...allEvents];
     renderTable();
-    renderD3Plot();
+    if (typeof d3 !== 'undefined') {
+        renderD3Plot();
+    }
     updateEventCount();
+    updateURL();
 }
 
 // Sort table
@@ -359,7 +514,7 @@ function renderTable() {
     }
     
     tbody.innerHTML = filteredEvents.map(event => {
-        let row = `<tr><td><strong>${event.name}</strong></td>`;
+        let row = `<tr><td><strong><a href="event.html?name=${encodeURIComponent(event.name)}" class="text-decoration-none">${event.name}</a></strong></td>`;
         
         selectedColumns.forEach(col => {
             const propData = event.properties[col];
