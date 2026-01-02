@@ -31,7 +31,7 @@ jobs:
       - name: Prepare deployment files
         run: |
           mkdir -p _site
-          cp -r index.html lib app.js styles.css data.json viewer.html viewer.js viewer.css LICENSE _site/
+          cp -r index.html lib app.js styles.css data/ viewer.html viewer.js viewer.css LICENSE _site/
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
