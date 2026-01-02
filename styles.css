@@ -10,6 +10,15 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
+/* Ensure header text is visible */
+.bg-gradient h1,
+.bg-gradient .display-5,
+.bg-gradient p,
+.bg-gradient .lead {
+    color: #ffffff !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
 /* Sidebar styling */
 .sidebar {
     background-color: #ffffff;
