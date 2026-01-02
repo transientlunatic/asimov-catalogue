@@ -101,6 +101,10 @@ function populatePlotAxisDropdowns() {
     const yAxisSelect = document.getElementById('plotYAxis');
     
     // Get all available numeric properties (those with median values)
+    if (allEvents.length === 0) {
+        console.error('No events loaded');
+        return;
+    }
     const sampleEvent = allEvents[0];
     const numericProps = Object.keys(sampleEvent.properties).filter(prop => {
         const val = sampleEvent.properties[prop];
