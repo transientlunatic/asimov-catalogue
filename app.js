@@ -3,7 +3,49 @@ let allEvents = [];
 let filteredEvents = [];
 let sortColumn = null;
 let sortDirection = 'asc';
-const TABLE_COLUMNS = 9; // Number of columns in the event table
+
+// Property metadata: units, display names, and grouping
+const PROPERTY_METADATA = {
+    // Mass properties
+    'mass_1': { label: 'Mass 1 (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    'mass_2': { label: 'Mass 2 (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    'chirp_mass': { label: 'Chirp Mass (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    'total_mass': { label: 'Total Mass (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    'mass_ratio': { label: 'Mass Ratio', unit: '', decimals: 3, group: 'mass' },
+    'mass_1_source': { label: 'Mass 1 Source (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    'mass_2_source': { label: 'Mass 2 Source (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    'total_mass_source': { label: 'Total Mass Source (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    'chirp_mass_source': { label: 'Chirp Mass Source (M☉)', unit: 'M☉', decimals: 2, group: 'mass' },
+    
+    // Spin properties
+    'chi_eff': { label: 'χ_eff', unit: '', decimals: 3, group: 'spin' },
+    'chi_p': { label: 'χ_p', unit: '', decimals: 3, group: 'spin' },
+    'a_1': { label: 'a_1', unit: '', decimals: 3, group: 'spin' },
+    'a_2': { label: 'a_2', unit: '', decimals: 3, group: 'spin' },
+    'spin_1z': { label: 'Spin 1z', unit: '', decimals: 3, group: 'spin' },
+    'spin_2z': { label: 'Spin 2z', unit: '', decimals: 3, group: 'spin' },
+    
+    // Distance properties
+    'luminosity_distance': { label: 'Luminosity Distance (Mpc)', unit: 'Mpc', decimals: 0, group: 'distance' },
+    'comoving_distance': { label: 'Comoving Distance (Mpc)', unit: 'Mpc', decimals: 0, group: 'distance' },
+    'redshift': { label: 'Redshift', unit: '', decimals: 3, group: 'distance' },
+    
+    // Other properties
+    'final_mass': { label: 'Final Mass (M☉)', unit: 'M☉', decimals: 2, group: 'other' },
+    'final_spin': { label: 'Final Spin', unit: '', decimals: 3, group: 'other' },
+    'radiated_energy': { label: 'Radiated Energy (M☉c²)', unit: 'M☉c²', decimals: 2, group: 'other' },
+};
+
+// Default columns to display
+const DEFAULT_COLUMNS = ['mass_1', 'mass_2', 'chirp_mass', 'luminosity_distance', 'chi_eff', 'chi_p'];
+
+// Current selected columns
+let selectedColumns = [...DEFAULT_COLUMNS];
+
+// Current plot axes
+let plotXAxis = 'luminosity_distance';
+let plotYAxis = 'total_mass';
+let showUncertainties = true;
 
 // Load data when page loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -21,10 +63,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        const response = await fetch('data.json');
-        allEvents = await response.json();
+        // Load GWTC-4 data
+        const response = await fetch('data/gwtc4-all.json');
+        const rawData = await response.json();
+        
+        // Process the data to extract median values
+        allEvents = rawData.map(event => ({
+            name: event.name,
+            properties: event.properties
+        }));
+        
         filteredEvents = [...allEvents];
         
+        // Populate plot axis dropdowns
+        populatePlotAxisDropdowns();
+        
+        // Render initial view
         renderTable();
         
         // Only render plot if D3.js is available
@@ -37,9 +91,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('eventTableBody').innerHTML = 
-            `<tr><td colspan="${TABLE_COLUMNS}" style="text-align: center; color: red;">Error loading event data</td></tr>`;
+            `<tr><td colspan="10" style="text-align: center; color: red;">Error loading event data: ${error.message}</td></tr>`;
     }
 });
+
+// Populate plot axis dropdowns with available properties
+function populatePlotAxisDropdowns() {
+    const xAxisSelect = document.getElementById('plotXAxis');
+    const yAxisSelect = document.getElementById('plotYAxis');
+    
+    // Get all available numeric properties (those with median values)
+    const sampleEvent = allEvents[0];
+    const numericProps = Object.keys(sampleEvent.properties).filter(prop => {
+        const val = sampleEvent.properties[prop];
+        return val && typeof val.median === 'number';
+    });
+    
+    // Group properties
+    const groups = {
+        mass: [],
+        spin: [],
+        distance: [],
+        other: []
+    };
+    
+    numericProps.forEach(prop => {
+        const metadata = PROPERTY_METADATA[prop];
+        if (metadata) {
+            groups[metadata.group].push(prop);
+        } else {
+            groups.other.push(prop);
+        }
+    });
+    
+    // Helper to create optgroup
+    const createOptGroup = (label, props, select) => {
+        if (props.length === 0) return;
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = label;
+        props.forEach(prop => {
+            const option = document.createElement('option');
+            option.value = prop;
+            const metadata = PROPERTY_METADATA[prop];
+            option.textContent = metadata ? metadata.label : prop;
+            if (prop === plotXAxis && select === xAxisSelect) option.selected = true;
+            if (prop === plotYAxis && select === yAxisSelect) option.selected = true;
+            optgroup.appendChild(option);
+        });
+        select.appendChild(optgroup);
+    };
+    
+    // Populate both selects
+    [xAxisSelect, yAxisSelect].forEach(select => {
+        select.innerHTML = '';
+        createOptGroup('Mass Properties', groups.mass, select);
+        createOptGroup('Spin Properties', groups.spin, select);
+        createOptGroup('Distance & Position', groups.distance, select);
+        createOptGroup('Other Properties', groups.other, select);
+    });
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -55,13 +165,33 @@ function setupEventListeners() {
     // Reset button
     document.getElementById('resetFilters').addEventListener('click', resetFilters);
     
-    // Column sorting
-    document.querySelectorAll('th[data-sort]').forEach(th => {
-        th.addEventListener('click', () => {
-            const column = th.dataset.sort;
-            sortTable(column);
-        });
+    // Plot axis selection
+    document.getElementById('plotXAxis').addEventListener('change', (e) => {
+        plotXAxis = e.target.value;
+        renderD3Plot();
     });
+    
+    document.getElementById('plotYAxis').addEventListener('change', (e) => {
+        plotYAxis = e.target.value;
+        renderD3Plot();
+    });
+    
+    document.getElementById('showUncertainties').addEventListener('change', (e) => {
+        showUncertainties = e.target.checked;
+        renderD3Plot();
+    });
+    
+    // Column selection checkboxes
+    document.querySelectorAll('.column-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedColumns);
+    });
+}
+
+// Update selected columns based on checkboxes
+function updateSelectedColumns() {
+    selectedColumns = Array.from(document.querySelectorAll('.column-checkbox:checked'))
+        .map(cb => cb.value);
+    renderTable();
 }
 
 // Apply filters
@@ -74,8 +204,12 @@ function applyFilters() {
     
     filteredEvents = allEvents.filter(event => {
         const matchesSearch = event.name.toLowerCase().includes(search);
-        const matchesMass = event.totalMass >= minMass && event.totalMass <= maxMass;
-        const matchesDistance = event.distance >= minDistance && event.distance <= maxDistance;
+        
+        const totalMass = event.properties.total_mass?.median;
+        const distance = event.properties.luminosity_distance?.median;
+        
+        const matchesMass = totalMass ? (totalMass >= minMass && totalMass <= maxMass) : true;
+        const matchesDistance = distance ? (distance >= minDistance && distance <= maxDistance) : true;
         
         return matchesSearch && matchesMass && matchesDistance;
     });
@@ -111,8 +245,15 @@ function sortTable(column) {
     
     // Sort the filtered events
     filteredEvents.sort((a, b) => {
-        let aVal = a[column];
-        let bVal = b[column];
+        let aVal, bVal;
+        
+        if (column === 'name') {
+            aVal = a.name;
+            bVal = b.name;
+        } else {
+            aVal = a.properties[column]?.median;
+            bVal = b.properties[column]?.median;
+        }
         
         // Handle null or undefined values
         if (aVal === null || aVal === undefined) {
@@ -149,42 +290,66 @@ function sortTable(column) {
     renderTable();
 }
 
+// Format value with uncertainty
+function formatValueWithUncertainty(propData, metadata) {
+    if (!propData || propData.median === undefined) {
+        return '<span class="text-muted">N/A</span>';
+    }
+    
+    const decimals = metadata?.decimals ?? 2;
+    const median = propData.median.toFixed(decimals);
+    const lower = propData.lower !== undefined ? Math.abs(propData.lower).toFixed(decimals) : null;
+    const upper = propData.upper !== undefined ? Math.abs(propData.upper).toFixed(decimals) : null;
+    
+    if (lower !== null && upper !== null) {
+        return `${median}<sub class="text-muted small">-${lower}</sub><sup class="text-muted small">+${upper}</sup>`;
+    }
+    
+    return median;
+}
+
 // Render table
 function renderTable() {
+    const headerRow = document.getElementById('tableHeaderRow');
     const tbody = document.getElementById('eventTableBody');
     
+    // Build table headers
+    let headers = '<th data-sort="name" class="sortable" aria-sort="none">Event Name <span class="sort-icon">↕</span></th>';
+    
+    selectedColumns.forEach(col => {
+        const metadata = PROPERTY_METADATA[col];
+        const label = metadata ? metadata.label : col;
+        headers += `<th data-sort="${col}" class="sortable" aria-sort="none">${label} <span class="sort-icon">↕</span></th>`;
+    });
+    
+    headerRow.innerHTML = headers;
+    
+    // Add click handlers to new headers
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+        th.addEventListener('click', () => {
+            const column = th.dataset.sort;
+            sortTable(column);
+        });
+    });
+    
+    // Build table rows
     if (filteredEvents.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${TABLE_COLUMNS}" style="text-align: center;">No events match the current filters</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${selectedColumns.length + 1}" style="text-align: center;">No events match the current filters</td></tr>`;
         return;
     }
     
-    tbody.innerHTML = filteredEvents.map(event => `
-        <tr>
-            <td><strong>${event.name}</strong></td>
-            <td>${formatDateTime(event.detectionTime)}</td>
-            <td><span class="badge bg-secondary">${event.type}</span></td>
-            <td>${event.mass1.toFixed(2)}</td>
-            <td>${event.mass2.toFixed(2)}</td>
-            <td>${event.totalMass.toFixed(2)}</td>
-            <td>${event.distance.toFixed(0)}</td>
-            <td>${event.significance.toFixed(1)}</td>
-            <td>${event.samplesUrl ? `<a href="viewer.html?event=${encodeURIComponent(event.name)}" class="btn btn-sm btn-primary" target="_blank">View Data</a>` : '<span class="text-muted">N/A</span>'}</td>
-        </tr>
-    `).join('');
-}
-
-// Format date time
-function formatDateTime(dateTimeStr) {
-    const date = new Date(dateTimeStr);
-    return date.toLocaleString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    });
+    tbody.innerHTML = filteredEvents.map(event => {
+        let row = `<tr><td><strong>${event.name}</strong></td>`;
+        
+        selectedColumns.forEach(col => {
+            const propData = event.properties[col];
+            const metadata = PROPERTY_METADATA[col];
+            row += `<td>${formatValueWithUncertainty(propData, metadata)}</td>`;
+        });
+        
+        row += '</tr>';
+        return row;
+    }).join('');
 }
 
 // Update event count
@@ -209,12 +374,26 @@ function renderD3Plot() {
         return;
     }
     
+    // Filter events that have both x and y values
+    const plotData = filteredEvents.filter(e => 
+        e.properties[plotXAxis]?.median !== undefined &&
+        e.properties[plotYAxis]?.median !== undefined
+    );
+    
+    if (plotData.length === 0) {
+        d3.select('#d3-plot')
+            .append('p')
+            .style('text-align', 'center')
+            .style('padding', '50px')
+            .text('No data available for selected axes');
+        return;
+    }
+    
     // Set dimensions
     const isSmallScreen = window.innerWidth < 768;
-    const margin = { top: 20, right: isSmallScreen ? 20 : 120, bottom: isSmallScreen ? 100 : 60, left: 60 };
-    const width = Math.min(900, window.innerWidth - 100) - margin.left - margin.right;
-    const baseHeight = isSmallScreen ? 500 : 400;
-    const height = baseHeight - margin.top - margin.bottom;
+    const margin = { top: 20, right: 20, bottom: 60, left: 70 };
+    const width = Math.min(900, window.innerWidth - (isSmallScreen ? 100 : 400)) - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
     
     // Create SVG
     const svg = d3.select('#d3-plot')
@@ -224,19 +403,21 @@ function renderD3Plot() {
         .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
     
+    // Get axis metadata
+    const xMetadata = PROPERTY_METADATA[plotXAxis] || { label: plotXAxis, decimals: 2 };
+    const yMetadata = PROPERTY_METADATA[plotYAxis] || { label: plotYAxis, decimals: 2 };
+    
     // Scales
+    const xExtent = d3.extent(plotData, d => d.properties[plotXAxis].median);
+    const yExtent = d3.extent(plotData, d => d.properties[plotYAxis].median);
+    
     const xScale = d3.scaleLinear()
-        .domain([0, d3.max(filteredEvents, d => d.distance) * 1.1])
+        .domain([xExtent[0] * 0.9, xExtent[1] * 1.1])
         .range([0, width]);
     
     const yScale = d3.scaleLinear()
-        .domain([0, d3.max(filteredEvents, d => d.totalMass) * 1.1])
+        .domain([yExtent[0] * 0.9, yExtent[1] * 1.1])
         .range([height, 0]);
-    
-    // Color scale by type
-    const colorScale = d3.scaleOrdinal()
-        .domain(['BBH', 'BNS', 'NSBH'])
-        .range(['#667eea', '#f093fb', '#4facfe']);
     
     // Add axes
     svg.append('g')
@@ -244,22 +425,22 @@ function renderD3Plot() {
         .call(d3.axisBottom(xScale))
         .append('text')
         .attr('x', width / 2)
-        .attr('y', 40)
+        .attr('y', 45)
         .attr('fill', 'black')
-        .attr('font-size', '14px')
+        .attr('font-size', '12px')
         .attr('text-anchor', 'middle')
-        .text('Distance (Mpc)');
+        .text(xMetadata.label);
     
     svg.append('g')
         .call(d3.axisLeft(yScale))
         .append('text')
         .attr('transform', 'rotate(-90)')
         .attr('x', -height / 2)
-        .attr('y', -45)
+        .attr('y', -50)
         .attr('fill', 'black')
-        .attr('font-size', '14px')
+        .attr('font-size', '12px')
         .attr('text-anchor', 'middle')
-        .text('Total Mass (M☉)');
+        .text(yMetadata.label);
     
     // Add grid lines
     svg.append('g')
@@ -279,7 +460,7 @@ function renderD3Plot() {
             .tickFormat('')
         );
     
-    // Add tooltip (reuse existing tooltip if present to avoid duplicates)
+    // Add tooltip
     let tooltip = d3.select('body').select('.d3-tooltip');
     if (tooltip.empty()) {
         tooltip = d3.select('body')
@@ -292,34 +473,84 @@ function renderD3Plot() {
             .style('border-radius', '5px')
             .style('pointer-events', 'none')
             .style('opacity', 0)
-            .style('font-size', '12px');
+            .style('font-size', '12px')
+            .style('z-index', '1000');
+    }
+    
+    // Add error bars if uncertainties are enabled
+    if (showUncertainties) {
+        // X error bars
+        svg.selectAll('.error-bar-x')
+            .data(plotData)
+            .enter()
+            .append('line')
+            .attr('class', 'error-bar-x')
+            .attr('x1', d => {
+                const median = d.properties[plotXAxis].median;
+                const lower = d.properties[plotXAxis].lower || 0;
+                return xScale(median + lower);
+            })
+            .attr('x2', d => {
+                const median = d.properties[plotXAxis].median;
+                const upper = d.properties[plotXAxis].upper || 0;
+                return xScale(median + upper);
+            })
+            .attr('y1', d => yScale(d.properties[plotYAxis].median))
+            .attr('y2', d => yScale(d.properties[plotYAxis].median))
+            .attr('stroke', '#667eea')
+            .attr('stroke-width', 1)
+            .attr('opacity', 0.3);
+        
+        // Y error bars
+        svg.selectAll('.error-bar-y')
+            .data(plotData)
+            .enter()
+            .append('line')
+            .attr('class', 'error-bar-y')
+            .attr('x1', d => xScale(d.properties[plotXAxis].median))
+            .attr('x2', d => xScale(d.properties[plotXAxis].median))
+            .attr('y1', d => {
+                const median = d.properties[plotYAxis].median;
+                const lower = d.properties[plotYAxis].lower || 0;
+                return yScale(median + lower);
+            })
+            .attr('y2', d => {
+                const median = d.properties[plotYAxis].median;
+                const upper = d.properties[plotYAxis].upper || 0;
+                return yScale(median + upper);
+            })
+            .attr('stroke', '#667eea')
+            .attr('stroke-width', 1)
+            .attr('opacity', 0.3);
     }
     
     // Add circles
     svg.selectAll('circle')
-        .data(filteredEvents)
+        .data(plotData)
         .enter()
         .append('circle')
-        .attr('cx', d => xScale(d.distance))
-        .attr('cy', d => yScale(d.totalMass))
-        .attr('r', d => Math.sqrt(d.significance) * 2)
-        .attr('fill', d => colorScale(d.type))
+        .attr('cx', d => xScale(d.properties[plotXAxis].median))
+        .attr('cy', d => yScale(d.properties[plotYAxis].median))
+        .attr('r', 5)
+        .attr('fill', '#667eea')
         .attr('opacity', 0.7)
         .attr('stroke', 'white')
-        .attr('stroke-width', 2)
+        .attr('stroke-width', 1.5)
         .on('mouseover', function(event, d) {
             d3.select(this)
                 .attr('opacity', 1)
-                .attr('stroke-width', 3);
+                .attr('stroke-width', 2.5)
+                .attr('r', 7);
+            
+            const xVal = d.properties[plotXAxis];
+            const yVal = d.properties[plotYAxis];
             
             tooltip
                 .style('opacity', 1)
                 .html(`
                     <strong>${d.name}</strong><br/>
-                    Type: ${d.type}<br/>
-                    Total Mass: ${d.totalMass.toFixed(2)} M☉<br/>
-                    Distance: ${d.distance} Mpc<br/>
-                    Significance: ${d.significance.toFixed(1)}σ
+                    ${xMetadata.label}: ${formatValueWithUncertainty(xVal, xMetadata)}<br/>
+                    ${yMetadata.label}: ${formatValueWithUncertainty(yVal, yMetadata)}
                 `);
         })
         .on('mousemove', function(event) {
@@ -330,41 +561,11 @@ function renderD3Plot() {
         .on('mouseout', function() {
             d3.select(this)
                 .attr('opacity', 0.7)
-                .attr('stroke-width', 2);
+                .attr('stroke-width', 1.5)
+                .attr('r', 5);
             
             tooltip.style('opacity', 0);
         });
-    
-    // Add legend - position below plot on small screens, to the right on larger screens
-    const legend = svg.append('g')
-        .attr('transform', isSmallScreen 
-            ? `translate(0, ${height + 50})` 
-            : `translate(${width + 10}, 0)`);
-    
-    const types = ['BBH', 'BNS', 'NSBH'];
-    const typeNames = {
-        'BBH': 'Binary Black Hole',
-        'BNS': 'Binary Neutron Star',
-        'NSBH': 'Neutron Star-Black Hole'
-    };
-    
-    types.forEach((type, i) => {
-        const legendRow = legend.append('g')
-            .attr('transform', isSmallScreen 
-                ? `translate(${i * 150}, 0)` 
-                : `translate(0, ${i * 25})`);
-        
-        legendRow.append('circle')
-            .attr('r', 6)
-            .attr('fill', colorScale(type))
-            .attr('opacity', 0.7);
-        
-        legendRow.append('text')
-            .attr('x', 15)
-            .attr('y', 5)
-            .attr('font-size', '11px')
-            .text(typeNames[type]);
-    });
 }
 
 // Redraw plot on window resize

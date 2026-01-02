@@ -1,14 +1,39 @@
 /* Custom styles to complement Bootstrap */
 
 body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    background-attachment: fixed;
+    background: #f8f9fa;
     min-height: 100vh;
 }
 
 /* Header gradient */
 .bg-gradient {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Sidebar styling */
+.sidebar {
+    background-color: #ffffff;
+    border-right: 1px solid #dee2e6;
+    min-height: calc(100vh - 100px);
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+}
+
+@media (max-width: 991.98px) {
+    .sidebar {
+        border-right: none;
+        border-bottom: 1px solid #dee2e6;
+        min-height: auto;
+    }
+}
+
+/* Sidebar sections */
+.sidebar section {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 1rem;
+}
+
+.sidebar section:last-child {
+    border-bottom: none;
 }
 
 /* Sortable table headers */
@@ -62,4 +87,24 @@ body {
 
 .table-primary th {
     border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Collapse buttons in sidebar */
+.sidebar .btn-link {
+    color: #495057;
+    text-decoration: none;
+}
+
+.sidebar .btn-link:hover {
+    color: #667eea;
+}
+
+/* Form check smaller size */
+.form-check-sm {
+    padding-left: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.form-check-sm .form-check-input {
+    margin-top: 0.15rem;
 }
