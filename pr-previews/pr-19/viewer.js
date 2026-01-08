@@ -1,0 +1,984 @@
+// Global variables
+let eventData = null;
+let hdf5Data = null;
+let currentParameter = null;
+let currentAnalyses = []; // Changed from currentAnalysis to support multiple selections
+let allParameters = [];
+let allAnalyses = [];
+let eventListenersSetup = false;
+let uploadButtonListenerSetup = false;
+let hdf5Cache = null; // Will hold the cache instance
+
+// HDF5 File Cache using IndexedDB
+class HDF5Cache {
+    constructor() {
+        this.dbName = 'HDF5FileCache';
+        this.storeName = 'files';
+        this.version = 1;
+        this.db = null;
+        this.cacheExpirationMs = 24 * 60 * 60 * 1000; // 24 hours
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.version);
+            
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve();
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'url' });
+                }
+            };
+        });
+    }
+
+    async get(url) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readonly');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.get(url);
+            
+            request.onsuccess = () => {
+                const record = request.result;
+                if (!record) {
+                    resolve(null);
+                    return;
+                }
+                
+                // Check if cache entry has expired
+                const now = Date.now();
+                if (now - record.timestamp > this.cacheExpirationMs) {
+                    // Cache expired, remove it
+                    this.delete(url);
+                    resolve(null);
+                    return;
+                }
+                
+                console.log(`Cache hit for ${url}`);
+                resolve(record.data);
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async set(url, data) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            const record = {
+                url: url,
+                data: data,
+                timestamp: Date.now()
+            };
+            const request = store.put(record);
+            
+            request.onsuccess = () => {
+                console.log(`Cached HDF5 file for ${url}`);
+                resolve();
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async delete(url) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.delete(url);
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async clear() {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.clear();
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+// Initialize cache
+hdf5Cache = new HDF5Cache();
+
+// Initialize the viewer when page loads
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Check if required dependencies are loaded
+        if (typeof h5wasm === 'undefined') {
+            showError('Failed to load h5wasm library. This may be due to:\n' +
+                     '• Ad blockers or privacy extensions blocking CDN resources\n' +
+                     '• Network connectivity issues\n' +
+                     '• Browser security settings\n\n' +
+                     'Please try:\n' +
+                     '• Disabling ad blockers for this site\n' +
+                     '• Checking your internet connection\n' +
+                     '• Using a different browser');
+            return;
+        }
+        
+        if (typeof d3 === 'undefined') {
+            showError('Failed to load D3.js library. This may be due to:\n' +
+                     '• Ad blockers or privacy extensions blocking CDN resources\n' +
+                     '• Network connectivity issues\n' +
+                     '• Browser security settings\n\n' +
+                     'Please try:\n' +
+                     '• Disabling ad blockers for this site\n' +
+                     '• Checking your internet connection\n' +
+                     '• Using a different browser');
+            return;
+        }
+        
+        // Get event name from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const eventName = urlParams.get('event');
+        const samplesUrl = urlParams.get('samplesUrl');
+        
+        // If direct samplesUrl is provided, use it
+        if (samplesUrl) {
+            // Update page title
+            document.getElementById('eventName').textContent = 'Custom Samples File';
+            document.title = 'Custom Samples - HDF5 Data Viewer';
+            
+            // Create a minimal event data object
+            eventData = {
+                name: 'Custom Sample',
+                type: 'Unknown',
+                detectionTime: 'Unknown',
+                samplesUrl: samplesUrl
+            };
+            
+            // Load HDF5 file
+            await loadHDF5File(samplesUrl);
+            return;
+        }
+        
+        if (!eventName) {
+            // No URL parameters - show file upload option
+            showFileUploadOption();
+            return;
+        }
+        
+        // Load event data from catalogue
+        const response = await fetch('data.json');
+        const allEvents = await response.json();
+        eventData = allEvents.find(e => e.name === eventName);
+        
+        if (!eventData) {
+            showError(`Event "${eventName}" not found in catalogue`);
+            return;
+        }
+        
+        if (!eventData.samplesUrl) {
+            showError(`No HDF5 samples file available for event "${eventName}"`);
+            return;
+        }
+        
+        // Update page title
+        document.getElementById('eventName').textContent = `Event: ${eventData.name}`;
+        document.title = `${eventData.name} - HDF5 Data Viewer`;
+        
+        // Load HDF5 file
+        await loadHDF5File(eventData.samplesUrl);
+        
+    } catch (error) {
+        console.error('Error initializing viewer:', error);
+        showError(`Failed to initialize viewer: ${error.message}`);
+    }
+});
+
+// Fetch file with CORS fallback and caching
+async function fetchWithCORSFallback(url) {
+    // Try to get from cache first
+    try {
+        const cachedData = await hdf5Cache.get(url);
+        if (cachedData) {
+            console.log('Using cached HDF5 file');
+            return cachedData;
+        }
+    } catch (error) {
+        console.warn('Cache lookup failed, will fetch from network:', error);
+    }
+
+    let lastError = null;
+
+    const actualUrl = url;
+    try {
+        console.log(`Attempting to fetch from: ${actualUrl}`);
+
+        const response = await fetch(actualUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const arrayBuffer = await response.arrayBuffer();
+        
+        // Validate that we got a valid HDF5 file (check magic bytes)
+        const uint8Array = new Uint8Array(arrayBuffer);
+        if (uint8Array.length < 8) {
+            throw new Error('File too small to be a valid HDF5 file');
+        }
+        
+        // HDF5 files start with the signature: \x89HDF\r\n\x1a\n
+        const hdf5Signature = [0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a];
+        const isValidHDF5 = hdf5Signature.every((byte, idx) => uint8Array[idx] === byte);
+        
+        if (!isValidHDF5) {
+            throw new Error('Response is not a valid HDF5 file');
+        }
+        
+        // Cache the file for future use
+        try {
+            await hdf5Cache.set(url, arrayBuffer);
+        } catch (error) {
+            console.warn('Failed to cache HDF5 file:', error);
+            // Continue even if caching fails
+        }
+        
+        return arrayBuffer;
+        
+    } catch (error) {
+        lastError = error;
+        console.warn(`Failed to fetch: ${error.message}`);
+
+    }
+    
+    // All attempts failed
+    throw new Error(
+        `Failed to fetch HDF5 file after trying all methods.\n\n` +
+        `URL: ${url}\n\n` +
+        `Last error: ${lastError.message}\n\n` +
+        `This may be due to:\n` +
+        `• The file URL is incorrect or inaccessible\n` +
+        `• The server is down or blocking requests\n` +
+        `• All CORS proxy services are unavailable\n\n` +
+        `Please verify the URL and try again later.`
+    );
+}
+
+// Show file upload option when no URL parameters are provided
+function showFileUploadOption() {
+    document.getElementById('loadingIndicator').classList.add('d-none');
+    document.getElementById('fileUploadSection').classList.remove('d-none');
+    document.getElementById('eventName').textContent = 'Upload Posterior File';
+    document.title = 'Upload File - HDF5 Data Viewer';
+    
+    // Setup file upload listener only once
+    if (uploadButtonListenerSetup) {
+        return;
+    }
+    uploadButtonListenerSetup = true;
+    
+    const loadFileButton = document.getElementById('loadFileButton');
+    
+    loadFileButton.addEventListener('click', async () => {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showError('Please select a file to upload');
+            return;
+        }
+        
+        // Show loading
+        document.getElementById('fileUploadSection').classList.add('d-none');
+        document.getElementById('loadingIndicator').classList.remove('d-none');
+        
+        // Create event data for uploaded file
+        eventData = {
+            name: file.name.replace(/\.(h5|hdf5)$/i, ''),
+            type: 'Unknown',
+            detectionTime: 'Unknown'
+        };
+        
+        try {
+            await loadHDF5FileFromLocal(file);
+        } catch (error) {
+            console.error('Error loading local file:', error);
+            eventData = null;
+            showError(`Failed to load file: ${error.message}`);
+            // Show upload section again on error
+            document.getElementById('loadingIndicator').classList.add('d-none');
+            document.getElementById('fileUploadSection').classList.remove('d-none');
+            // Clear the file input for retry
+            fileInput.value = '';
+        }
+    });
+}
+
+// Load HDF5 file from local File object
+async function loadHDF5FileFromLocal(file) {
+    // Initialize h5wasm
+    const { FS } = await h5wasm.ready;
+    
+    // Read the file as ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Validate HDF5 signature
+    if (uint8Array.length < 8) {
+        throw new Error('File too small to be a valid HDF5 file');
+    }
+    
+    const hdf5Signature = [0x89, 0x48, 0x44, 0x46, 0x0d, 0x0a, 0x1a, 0x0a];
+    const isValidHDF5 = hdf5Signature.every((byte, idx) => uint8Array[idx] === byte);
+    
+    if (!isValidHDF5) {
+        throw new Error('Selected file is not a valid HDF5 file');
+    }
+    
+    // Write file to virtual filesystem
+    const filename = '/data.h5';
+    FS.writeFile(filename, uint8Array);
+    
+    // Open the file
+    const h5file = new h5wasm.File(filename, 'r');
+    hdf5Data = h5file;
+    
+    // Extract analyses and parameters
+    await extractAnalysesAndParameters(h5file);
+    
+    // Hide loading, show content
+    document.getElementById('loadingIndicator').classList.add('d-none');
+    document.getElementById('eventInfo').classList.remove('d-none');
+    document.getElementById('parameterSelection').classList.remove('d-none');
+    document.getElementById('plotContainer').classList.remove('d-none');
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Display first analysis and parameter by default
+    if (allAnalyses.length > 0 && allParameters.length > 0) {
+        currentAnalyses = [allAnalyses[0]];
+        currentParameter = allParameters[0];
+        updatePlot();
+    }
+}
+
+// Load HDF5 file
+async function loadHDF5File(url) {
+    try {
+        // Initialize h5wasm
+        const { FS } = await h5wasm.ready;
+        
+        // Fetch the HDF5 file with CORS fallback
+        const arrayBuffer = await fetchWithCORSFallback(url);
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Write file to virtual filesystem
+        const filename = '/data.h5';
+        FS.writeFile(filename, uint8Array);
+        
+        // Open the file
+        const file = new h5wasm.File(filename, 'r');
+        hdf5Data = file;
+        
+        // Extract analyses and parameters
+        await extractAnalysesAndParameters(file);
+        
+        // Hide loading, show content
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        document.getElementById('eventInfo').classList.remove('d-none');
+        document.getElementById('parameterSelection').classList.remove('d-none');
+        document.getElementById('plotContainer').classList.remove('d-none');
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        // Display first analysis and parameter by default
+        if (allAnalyses.length > 0 && allParameters.length > 0) {
+            currentAnalyses = [allAnalyses[0]];
+            currentParameter = allParameters[0];
+            updatePlot();
+        }
+        
+    } catch (error) {
+        console.error('Error loading HDF5 file:', error);
+        showError(`Failed to load HDF5 file: ${error.message}`);
+    }
+}
+
+// Extract analyses and parameters from HDF5 file
+async function extractAnalysesAndParameters(file) {
+    try {
+        // Get all top-level keys
+        const topLevelKeys = file.keys();
+        console.log('Top-level keys:', topLevelKeys);
+        
+        // Find all analyses (groups that contain posterior_samples)
+        const analyses = [];
+        for (const key of topLevelKeys) {
+            try {
+                const group = file.get(key);
+                if (group && typeof group.keys === 'function') {
+                    const subKeys = group.keys();
+                    // Check if this group has a posterior_samples subgroup
+                    if (subKeys.includes('posterior_samples')) {
+                        analyses.push(key);
+                      }
+                }
+            } catch (e) {
+                // Not a group or can't access, skip
+                continue;
+            }
+        }
+        
+        // If no analyses found with posterior_samples, try direct paths
+        if (analyses.length === 0) {
+            const possiblePaths = [
+                'posterior_samples',
+                'posterior',
+                'samples',
+                'PublicationSamples'
+            ];
+            
+            for (const path of possiblePaths) {
+                try {
+                    const group = file.get(path);
+                    if (group) {
+                        // Treat this as an analysis with empty name
+                        analyses.push(path);
+                        break;
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+        }
+        
+        if (analyses.length === 0) {
+            throw new Error('Could not find any analysis datasets in HDF5 file. Please check the file structure.');
+        }
+        
+        allAnalyses = analyses;
+        console.log('Found analyses:', allAnalyses);
+        
+        // Populate analysis dropdown
+        const analysisSelect = document.getElementById('analysisSelect');
+        analysisSelect.innerHTML = allAnalyses.map(analysis => 
+            `<option value="${analysis}">${formatAnalysisName(analysis)}</option>`
+        ).join('');
+        
+        // Set current analyses to first one by default
+        currentAnalyses = [allAnalyses[0]];
+        analysisSelect.options[0].selected = true;
+        
+        // Extract parameters for the first analysis
+        await extractParametersForAnalysis(file, currentAnalyses[0]);
+        
+    } catch (error) {
+        throw new Error(`Error extracting analyses: ${error.message}`);
+    }
+}
+
+// Extract parameters for a specific analysis
+async function extractParametersForAnalysis(file, analysisName) {
+    try {
+        // Determine the path to posterior_samples
+        let samplesPath;
+        try {
+            // Try <ANALYSIS>/posterior_samples first
+            const testPath = `${analysisName}/posterior_samples`;
+            const testGroup = file.get(testPath);
+            if (testGroup) { 
+                samplesPath = testPath; 
+            } else { 
+                samplesPath = analysisName; 
+            }
+        } catch (e) {
+            // analysisName might already be the samples path
+            samplesPath = analysisName;
+        }
+        
+        const samplesGroup = file.get(samplesPath);
+        if (!samplesGroup) {
+            throw new Error(`Could not access posterior samples at ${samplesPath}`);
+        }
+        
+        // Check if this is a dataset with compound type (structured array)
+        if (samplesGroup.type === 'Dataset' && samplesGroup.dtype && samplesGroup.dtype.compound_type) {
+            // Extract parameter names from compound type
+            const compoundType = samplesGroup.dtype.compound_type;
+            allParameters = compoundType.members.map(member => member.name); // Updated to get actual parameter names
+        } else if (typeof samplesGroup.keys === 'function') {
+            // It's a group with separate datasets for each parameter
+            const paramNames = samplesGroup.keys();
+            
+            // Filter out non-numeric parameters and sort
+            allParameters = paramNames.filter(name => {
+                try {
+                    const dataset = samplesGroup.get(name);
+                    // Check if it's a dataset with numeric data
+                    return dataset && dataset.value && Array.isArray(dataset.value);
+                } catch (e) {
+                    return false;
+                }
+            }).sort();
+        } else {
+            throw new Error('Unexpected HDF5 structure: posterior_samples is neither a compound dataset nor a group');
+        }
+        
+        if (allParameters.length === 0) {
+            throw new Error('No valid numeric parameters found in HDF5 file');
+        }
+        
+        // Populate parameter dropdown
+        const select = document.getElementById('parameterSelect');
+        select.innerHTML = allParameters.map(param => 
+            `<option value="${param}">${formatParameterName(param)}</option>`
+        ).join('');
+        
+        // Get sample count
+        const sampleCount = samplesGroup.shape[0];
+        
+        // Update event info
+        document.getElementById('infoEventName').textContent = eventData.name;
+        document.getElementById('infoEventType').textContent = eventData.type;
+        document.getElementById('infoDetectionTime').textContent = formatDateTime(eventData.detectionTime);
+        document.getElementById('infoSampleCount').textContent = sampleCount.toLocaleString();
+        
+    } catch (error) {
+        throw new Error(`Error extracting parameters: ${error.message}`);
+    }
+}
+
+// Get the samples path for the current analysis
+function getSamplesPath(analysisName) {
+    if (!hdf5Data) {
+        throw new Error('HDF5 data not loaded');
+    }
+    
+    try {
+        // Try <ANALYSIS>/posterior_samples first
+        const testPath = `${analysisName}/posterior_samples`;
+        const testGroup = hdf5Data.get(testPath);
+        if (testGroup) {
+            return testPath;
+        }
+    } catch (e) {
+        // Fall through to return analysisName
+    }
+    // analysisName might already be the full path to samples
+    return analysisName;
+}
+
+// Format analysis name for display
+function formatAnalysisName(name) {
+    // Clean up analysis names for display
+    if (!name || typeof name !== 'string') {
+        return 'Unknown';
+    }
+    
+    const parts = name.split('/');
+    const lastPart = parts[parts.length - 1] || parts[parts.length - 2] || name;
+    
+    return lastPart
+        .replace(/_/g, ' ')
+        .replace(/([A-Z])/g, ' $1')
+        .split(' ')
+        .filter(word => word.length > 0)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+        .trim() || 'Unknown';
+}
+
+// Format parameter name for display
+function formatParameterName(name) {
+    // Convert snake_case or camelCase to Title Case
+    return name
+        .replace(/_/g, ' ')
+        .replace(/([A-Z])/g, ' $1')
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+        .trim();
+}
+
+// Format date time
+function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr || dateTimeStr === 'Unknown') {
+        return 'Unknown';
+    }
+    const date = new Date(dateTimeStr);
+    if (isNaN(date.getTime())) {
+        return 'Unknown';
+    }
+    return date.toLocaleString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    // Only setup listeners once
+    if (eventListenersSetup) {
+        return;
+    }
+    eventListenersSetup = true;
+    
+    // Analysis selection change handler
+    document.getElementById('analysisSelect').addEventListener('change', async (e) => {
+        // Get all selected options
+        const selectedOptions = Array.from(e.target.selectedOptions);
+        currentAnalyses = selectedOptions.map(opt => opt.value);
+        
+        if (currentAnalyses.length === 0) {
+            // No selection, don't update
+            return;
+        }
+        
+        // Re-extract parameters for the first selected analysis
+        // (all analyses should have the same parameters, but we use the first as reference)
+        try {
+            await extractParametersForAnalysis(hdf5Data, currentAnalyses[0]);
+            // Update current parameter to first in new analysis
+            if (allParameters.length > 0) {
+                currentParameter = allParameters[0];
+                updatePlot();
+            }
+        } catch (error) {
+            console.error('Error loading analysis:', error);
+            showError(`Failed to load analysis: ${error.message}`);
+        }
+    });
+    
+    // Parameter selection change handler
+    document.getElementById('parameterSelect').addEventListener('change', (e) => {
+        currentParameter = e.target.value;
+        updatePlot(); // Auto-update when parameter changes
+    });
+    
+    document.getElementById('updatePlot').addEventListener('click', updatePlot);
+    
+    document.getElementById('binsInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            updatePlot();
+        }
+    });
+}
+
+// Update plot
+function updatePlot() {
+    // Show loading indicator
+    document.getElementById('loadingIndicator').classList.remove('d-none');
+    
+    try {
+        const parameter = currentParameter || document.getElementById('parameterSelect').value;
+        const bins = parseInt(document.getElementById('binsInput').value) || 50;
+        const maxSamples = parseInt(document.getElementById('maxSamplesInput')?.value) || 2000;
+        
+        if (!parameter) {
+            showError('Please select a parameter');
+            return;
+        }
+        
+        if (!currentAnalyses || currentAnalyses.length === 0) {
+            showError('Please select at least one analysis');
+            return;
+        }
+        
+        // Collect data for all selected analyses
+        const analysisDatasets = [];
+        
+        for (const analysisName of currentAnalyses) {
+            // Get the correct samples path for current analysis
+            const samplesPath = getSamplesPath(analysisName);
+            const samplesGroup = hdf5Data.get(samplesPath);
+            
+            let values;
+            
+            // Check if it's a compound dataset or a group
+            if (samplesGroup.type === 'Dataset' && samplesGroup.dtype && samplesGroup.dtype.compound_type) {
+                // Compound dataset: extract the specific parameter column
+                const compoundType = samplesGroup.metadata.compound_type;
+                
+                const parameter_map = new Map();
+                let i = 0;
+                for (const member of compoundType.members){
+                    parameter_map.set(member.name, i);
+                    i++;
+                }
+
+                const paramIndex = parameter_map.get(parameter);
+
+                if (paramIndex === undefined) {
+                    throw new Error(`Parameter ${parameter} not found in dataset`);
+                }
+                
+                // Extract values for this parameter from all samples
+                const allData = samplesGroup.value;
+                values = allData.map(sample => sample[paramIndex]);
+
+            } else {
+                // Group with separate datasets
+                const dataset = samplesGroup.get(parameter);
+                values = Array.from(dataset.value);
+            }
+            
+            // Limit samples if necessary
+            if (values.length > maxSamples) {
+                const sampled = [];
+                const indices = new Set();
+                while (sampled.length < maxSamples) {
+                    const idx = Math.floor(Math.random() * values.length);
+                    if (!indices.has(idx)) {
+                        indices.add(idx);
+                        sampled.push(values[idx]);
+                    }
+                }
+                values = sampled;
+            }
+            
+            analysisDatasets.push({
+                name: analysisName,
+                values: values
+            });
+        }
+        
+        // Update sample count display to reflect first analysis
+        document.getElementById('infoSampleCount').textContent = 
+            analysisDatasets[0].values.length.toLocaleString();
+        
+        // Update plot title
+        const titleText = currentAnalyses.length > 1 
+            ? `Comparison: ${formatParameterName(parameter)}` 
+            : `Posterior Distribution: ${formatParameterName(parameter)}`;
+        document.getElementById('plotTitle').textContent = titleText;
+        
+        // Calculate statistics for first analysis (or could show combined)
+        const stats = calculateStatistics(analysisDatasets[0].values);
+        updateStatistics(stats);
+        
+        // Render histogram with multiple datasets
+        renderHistogram(analysisDatasets, bins, parameter);
+        
+        // Hide loading indicator after rendering
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        
+    } catch (error) {
+        // Hide loading indicator on error
+        document.getElementById('loadingIndicator').classList.add('d-none');
+        console.error('Error updating plot:', error);
+        showError(`Failed to update plot: ${error.message}`);
+    }
+}
+
+// Calculate statistics
+function calculateStatistics(values) {
+    const sorted = [...values].sort((a, b) => a - b);
+    const n = sorted.length;
+    
+    const mean = values.reduce((sum, val) => sum + val, 0) / n;
+    
+    // Calculate median (average of two middle values for even-length arrays)
+    const median = n % 2 === 0 
+        ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2 
+        : sorted[Math.floor(n / 2)];
+    
+    // Calculate sample variance (using n-1 for unbiased estimator)
+    const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (n - 1);
+    const stdDev = Math.sqrt(variance);
+    
+    // Calculate confidence intervals with proper bounds checking
+    const ci5 = sorted[Math.floor(n * 0.05)];
+    const ci95 = sorted[Math.min(Math.floor(n * 0.95), n - 1)];
+    
+    return { mean, median, stdDev, ci5, ci95 };
+}
+
+// Update statistics display
+function updateStatistics(stats) {
+    document.getElementById('statMean').textContent = stats.mean.toExponential(3);
+    document.getElementById('statMedian').textContent = stats.median.toExponential(3);
+    document.getElementById('statStdDev').textContent = stats.stdDev.toExponential(3);
+    document.getElementById('statCI').textContent = 
+        `[${stats.ci5.toExponential(3)}, ${stats.ci95.toExponential(3)}]`;
+}
+
+// Render histogram using D3
+function renderHistogram(datasetsInput, numBins, parameter) {
+    // Clear previous plot
+    d3.select('#histogram').selectAll('*').remove();
+    
+    // Handle both old single-dataset and new multi-dataset format
+    const datasets = Array.isArray(datasetsInput) && datasetsInput.length > 0 && datasetsInput[0].values
+        ? datasetsInput
+        : [{ name: 'default', values: datasetsInput }];
+    
+    // Set dimensions
+    const isSmallScreen = window.innerWidth < 768;
+    const showLegend = datasets.length > 1;
+    const margin = { 
+        top: 20, 
+        right: showLegend ? 150 : 30, 
+        bottom: 60, 
+        left: 70 
+    };
+    const width = Math.min(900, window.innerWidth - 100) - margin.left - margin.right;
+    const height = (isSmallScreen ? 350 : 400) - margin.top - margin.bottom;
+    
+    // Create SVG
+    const svg = d3.select('#histogram')
+        .append('svg')
+        .attr('width', width + margin.left + margin.right)
+        .attr('height', height + margin.top + margin.bottom)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+    
+    // Find global extent across all datasets
+    const allValues = datasets.flatMap(d => d.values);
+    const globalExtent = d3.extent(allValues);
+    
+    // Create histogram bins
+    const x = d3.scaleLinear()
+        .domain(globalExtent)
+        .nice()
+        .range([0, width]);
+    
+    const histogram = d3.histogram()
+        .domain(x.domain())
+        .thresholds(x.ticks(numBins));
+    
+    // Create bins for each dataset
+    const allBinnedData = datasets.map(dataset => ({
+        name: dataset.name,
+        bins: histogram(dataset.values)
+    }));
+    
+    // Find max count across all datasets for y-scale
+    const maxCount = d3.max(allBinnedData, d => d3.max(d.bins, bin => bin.length));
+    
+    const y = d3.scaleLinear()
+        .domain([0, maxCount])
+        .nice()
+        .range([height, 0]);
+    
+    // Color scale for multiple analyses
+    const colors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140'];
+    
+    // Draw histograms for each dataset
+    datasets.forEach((dataset, idx) => {
+        const bins = allBinnedData[idx].bins;
+        const color = colors[idx % colors.length];
+        
+        svg.selectAll(`.bars-${idx}`)
+            .data(bins)
+            .enter()
+            .append('rect')
+            .attr('class', `bars-${idx}`)
+            .attr('x', d => x(d.x0) + 1)
+            .attr('y', d => y(d.length))
+            .attr('width', d => Math.max(0, x(d.x1) - x(d.x0) - 2))
+            .attr('height', d => height - y(d.length))
+            .attr('fill', color)
+            .attr('opacity', datasets.length > 1 ? 0.5 : 0.7)
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1);
+    });
+    
+    // Add x-axis
+    svg.append('g')
+        .attr('transform', `translate(0,${height})`)
+        .call(d3.axisBottom(x).ticks(8))
+        .append('text')
+        .attr('x', width / 2)
+        .attr('y', 45)
+        .attr('fill', 'black')
+        .attr('font-size', '14px')
+        .attr('text-anchor', 'middle')
+        .text(formatParameterName(parameter));
+    
+    // Add y-axis
+    svg.append('g')
+        .call(d3.axisLeft(y))
+        .append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -height / 2)
+        .attr('y', -50)
+        .attr('fill', 'black')
+        .attr('font-size', '14px')
+        .attr('text-anchor', 'middle')
+        .text('Count');
+    
+    // Add grid lines
+    svg.append('g')
+        .attr('class', 'grid')
+        .attr('opacity', 0.1)
+        .call(d3.axisLeft(y)
+            .tickSize(-width)
+            .tickFormat('')
+        );
+    
+    // Add legend if multiple datasets
+    if (showLegend) {
+        const legend = svg.append('g')
+            .attr('class', 'legend')
+            .attr('transform', `translate(${width + 20}, 0)`);
+        
+        datasets.forEach((dataset, idx) => {
+            const color = colors[idx % colors.length];
+            const legendRow = legend.append('g')
+                .attr('transform', `translate(0, ${idx * 25})`);
+            
+            legendRow.append('rect')
+                .attr('width', 18)
+                .attr('height', 18)
+                .attr('fill', color)
+                .attr('opacity', 0.5);
+            
+            legendRow.append('text')
+                .attr('x', 24)
+                .attr('y', 9)
+                .attr('dy', '0.35em')
+                .attr('font-size', '12px')
+                .text(formatAnalysisName(dataset.name));
+        });
+    }
+}
+
+// Show error message
+function showError(message) {
+    document.getElementById('loadingIndicator').classList.add('d-none');
+    document.getElementById('errorMessage').classList.remove('d-none');
+    const errorTextElement = document.getElementById('errorText');
+    // Preserve line breaks in error messages
+    errorTextElement.style.whiteSpace = 'pre-wrap';
+    errorTextElement.textContent = message;
+}
+
+// Redraw plot on window resize
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        if (currentParameter && hdf5Data) {
+            updatePlot();
+        }
+    }, 250);
+});
