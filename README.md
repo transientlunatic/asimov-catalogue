@@ -51,6 +51,16 @@ To run the website locally:
 
 The website is automatically deployed to GitHub Pages when changes are pushed to the `main` branch. The deployment workflow is configured in `.github/workflows/deploy.yml`.
 
+### PR Preview Deployments
+
+Pull requests are automatically deployed to preview environments for testing:
+
+- **Automatic deployment**: When you open or update a PR, a preview is deployed to `https://<owner>.github.io/<repo>/pr-previews/pr-<number>/`
+- **PR comments**: A bot comment is added to the PR with the preview URL
+- **Automatic cleanup**: Preview deployments are automatically removed when the PR is closed or merged
+
+This allows you to test changes in a live environment before merging to main.
+
 ## Data Format
 
 The catalogue uses JSON format for event data. Each event includes:
@@ -96,6 +106,28 @@ The viewer supports three ways to load posterior samples:
    - Select an HDF5 file from your computer to analyze
    - No need to host the file online
    - All processing happens locally in your browser
+
+### Multi-Analysis Comparison
+
+The viewer now supports comparing multiple analyses from the same HDF5 file:
+
+- **Select multiple analyses**: In the Analysis Dataset(s) dropdown, hold Ctrl (Windows/Linux) or Cmd (Mac) to select multiple analyses
+- **Overlay plots**: All selected analyses are displayed on the same histogram with different colors
+- **Color-coded legend**: A legend appears on the right side of the plot to identify each analysis
+- **Single parameter view**: The parameter dropdown shows one parameter at a time across all selected analyses
+
+This feature is particularly useful for comparing different waveforms or analysis settings for the same gravitational wave event.
+
+### HDF5 File Caching
+
+To improve performance and reduce server load, the viewer automatically caches HDF5 files locally using IndexedDB:
+
+- **Automatic caching**: Files are cached on first load
+- **Fast reload**: Subsequent loads of the same file use the cached version
+- **24-hour expiration**: Cached files expire after 24 hours to ensure fresh data
+- **Browser storage**: All caching happens in your browser; no server-side storage required
+
+This significantly speeds up repeated viewing of the same datasets.
 
 ### CORS Support
 

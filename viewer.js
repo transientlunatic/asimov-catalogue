@@ -2,11 +2,124 @@
 let eventData = null;
 let hdf5Data = null;
 let currentParameter = null;
-let currentAnalysis = null;
+let currentAnalyses = []; // Changed from currentAnalysis to support multiple selections
 let allParameters = [];
 let allAnalyses = [];
 let eventListenersSetup = false;
 let uploadButtonListenerSetup = false;
+let hdf5Cache = null; // Will hold the cache instance
+
+// HDF5 File Cache using IndexedDB
+class HDF5Cache {
+    constructor() {
+        this.dbName = 'HDF5FileCache';
+        this.storeName = 'files';
+        this.version = 1;
+        this.db = null;
+        this.cacheExpirationMs = 24 * 60 * 60 * 1000; // 24 hours
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.version);
+            
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve();
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'url' });
+                }
+            };
+        });
+    }
+
+    async get(url) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readonly');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.get(url);
+            
+            request.onsuccess = () => {
+                const record = request.result;
+                if (!record) {
+                    resolve(null);
+                    return;
+                }
+                
+                // Check if cache entry has expired
+                const now = Date.now();
+                if (now - record.timestamp > this.cacheExpirationMs) {
+                    // Cache expired, remove it
+                    this.delete(url);
+                    resolve(null);
+                    return;
+                }
+                
+                console.log(`Cache hit for ${url}`);
+                resolve(record.data);
+            };
+            
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async set(url, data) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            const record = {
+                url: url,
+                data: data,
+                timestamp: Date.now()
+            };
+            const request = store.put(record);
+            
+            request.onsuccess = () => {
+                console.log(`Cached HDF5 file for ${url}`);
+                resolve();
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async delete(url) {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.delete(url);
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async clear() {
+        if (!this.db) await this.init();
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.clear();
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+// Initialize cache
+hdf5Cache = new HDF5Cache();
 
 // Initialize the viewer when page loads
 document.addEventListener('DOMContentLoaded', async () => {
@@ -94,8 +207,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Fetch file with CORS fallback
+// Fetch file with CORS fallback and caching
 async function fetchWithCORSFallback(url) {
+    // Try to get from cache first
+    try {
+        const cachedData = await hdf5Cache.get(url);
+        if (cachedData) {
+            console.log('Using cached HDF5 file');
+            return cachedData;
+        }
+    } catch (error) {
+        console.warn('Cache lookup failed, will fetch from network:', error);
+    }
+
     let lastError = null;
 
     const actualUrl = url;
@@ -103,11 +227,6 @@ async function fetchWithCORSFallback(url) {
         console.log(`Attempting to fetch from: ${actualUrl}`);
 
         const response = await fetch(actualUrl);
-        //const buffer = await response.arrayBuffer();
-        //console.log("Downloaded");
-        //console.log(buffer);
-        //FS.writeFile("tmp.h5", new Uint8Array(buffer));
-        //const response = await fetch(actualUrl);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -127,6 +246,14 @@ async function fetchWithCORSFallback(url) {
         
         if (!isValidHDF5) {
             throw new Error('Response is not a valid HDF5 file');
+        }
+        
+        // Cache the file for future use
+        try {
+            await hdf5Cache.set(url, arrayBuffer);
+        } catch (error) {
+            console.warn('Failed to cache HDF5 file:', error);
+            // Continue even if caching fails
         }
         
         return arrayBuffer;
@@ -242,7 +369,7 @@ async function loadHDF5FileFromLocal(file) {
     
     // Display first analysis and parameter by default
     if (allAnalyses.length > 0 && allParameters.length > 0) {
-        currentAnalysis = allAnalyses[0];
+        currentAnalyses = [allAnalyses[0]];
         currentParameter = allParameters[0];
         updatePlot();
     }
@@ -280,7 +407,7 @@ async function loadHDF5File(url) {
         
         // Display first analysis and parameter by default
         if (allAnalyses.length > 0 && allParameters.length > 0) {
-            currentAnalysis = allAnalyses[0];
+            currentAnalyses = [allAnalyses[0]];
             currentParameter = allParameters[0];
             updatePlot();
         }
@@ -352,11 +479,12 @@ async function extractAnalysesAndParameters(file) {
             `<option value="${analysis}">${formatAnalysisName(analysis)}</option>`
         ).join('');
         
-        // Set current analysis to first one
-        currentAnalysis = allAnalyses[0];
+        // Set current analyses to first one by default
+        currentAnalyses = [allAnalyses[0]];
+        analysisSelect.options[0].selected = true;
         
         // Extract parameters for the first analysis
-        await extractParametersForAnalysis(file, currentAnalysis);
+        await extractParametersForAnalysis(file, currentAnalyses[0]);
         
     } catch (error) {
         throw new Error(`Error extracting analyses: ${error.message}`);
@@ -516,10 +644,19 @@ function setupEventListeners() {
     
     // Analysis selection change handler
     document.getElementById('analysisSelect').addEventListener('change', async (e) => {
-        currentAnalysis = e.target.value;
-        // Re-extract parameters for the new analysis
+        // Get all selected options
+        const selectedOptions = Array.from(e.target.selectedOptions);
+        currentAnalyses = selectedOptions.map(opt => opt.value);
+        
+        if (currentAnalyses.length === 0) {
+            // No selection, don't update
+            return;
+        }
+        
+        // Re-extract parameters for the first selected analysis
+        // (all analyses should have the same parameters, but we use the first as reference)
         try {
-            await extractParametersForAnalysis(hdf5Data, currentAnalysis);
+            await extractParametersForAnalysis(hdf5Data, currentAnalyses[0]);
             // Update current parameter to first in new analysis
             if (allParameters.length > 0) {
                 currentParameter = allParameters[0];
@@ -561,72 +698,85 @@ function updatePlot() {
             return;
         }
         
-        if (!currentAnalysis) {
-            showError('Please select an analysis');
+        if (!currentAnalyses || currentAnalyses.length === 0) {
+            showError('Please select at least one analysis');
             return;
         }
         
-        // Get the correct samples path for current analysis
-        const samplesPath = getSamplesPath(currentAnalysis);
-        const samplesGroup = hdf5Data.get(samplesPath);
+        // Collect data for all selected analyses
+        const analysisDatasets = [];
         
-        let values;
-        
-        // Check if it's a compound dataset or a group
-        if (samplesGroup.type === 'Dataset' && samplesGroup.dtype && samplesGroup.dtype.compound_type) {
-            // Compound dataset: extract the specific parameter column
-            const compoundType = samplesGroup.metadata.compound_type;
+        for (const analysisName of currentAnalyses) {
+            // Get the correct samples path for current analysis
+            const samplesPath = getSamplesPath(analysisName);
+            const samplesGroup = hdf5Data.get(samplesPath);
             
-            var parameter_map = new Map();
-            var i = 0;
-            for (const member of compoundType.members){
-                parameter_map.set(member.name, i);
-                i++;
-            }
-
-            var paramIndex = parameter_map.get(parameter);
-
-            if (paramIndex === -1) {
-                throw new Error(`Parameter ${parameter} not found in dataset`);
-            }
+            let values;
             
-            // Extract values for this parameter from all samples
-            const allData = samplesGroup.value;
-            values = allData.map(sample => sample[paramIndex]);
-
-        } else {
-            // Group with separate datasets
-            const dataset = samplesGroup.get(parameter);
-            values = Array.from(dataset.value);
-        }
-        
-        // Limit samples if necessary
-        if (values.length > maxSamples) {
-            const sampled = [];
-            const indices = new Set();
-            while (sampled.length < maxSamples) {
-                const idx = Math.floor(Math.random() * values.length);
-                if (!indices.has(idx)) {
-                    indices.add(idx);
-                    sampled.push(values[idx]);
+            // Check if it's a compound dataset or a group
+            if (samplesGroup.type === 'Dataset' && samplesGroup.dtype && samplesGroup.dtype.compound_type) {
+                // Compound dataset: extract the specific parameter column
+                const compoundType = samplesGroup.metadata.compound_type;
+                
+                const parameter_map = new Map();
+                let i = 0;
+                for (const member of compoundType.members){
+                    parameter_map.set(member.name, i);
+                    i++;
                 }
+
+                const paramIndex = parameter_map.get(parameter);
+
+                if (paramIndex === undefined) {
+                    throw new Error(`Parameter ${parameter} not found in dataset`);
+                }
+                
+                // Extract values for this parameter from all samples
+                const allData = samplesGroup.value;
+                values = allData.map(sample => sample[paramIndex]);
+
+            } else {
+                // Group with separate datasets
+                const dataset = samplesGroup.get(parameter);
+                values = Array.from(dataset.value);
             }
-            values = sampled;
+            
+            // Limit samples if necessary
+            if (values.length > maxSamples) {
+                const sampled = [];
+                const indices = new Set();
+                while (sampled.length < maxSamples) {
+                    const idx = Math.floor(Math.random() * values.length);
+                    if (!indices.has(idx)) {
+                        indices.add(idx);
+                        sampled.push(values[idx]);
+                    }
+                }
+                values = sampled;
+            }
+            
+            analysisDatasets.push({
+                name: analysisName,
+                values: values
+            });
         }
         
-        // Update sample count display to reflect plotted samples
-        document.getElementById('infoSampleCount').textContent = values.length.toLocaleString();
+        // Update sample count display to reflect first analysis
+        document.getElementById('infoSampleCount').textContent = 
+            analysisDatasets[0].values.length.toLocaleString();
         
         // Update plot title
-        document.getElementById('plotTitle').textContent = 
-            `Posterior Distribution: ${formatParameterName(parameter)}`;
+        const titleText = currentAnalyses.length > 1 
+            ? `Comparison: ${formatParameterName(parameter)}` 
+            : `Posterior Distribution: ${formatParameterName(parameter)}`;
+        document.getElementById('plotTitle').textContent = titleText;
         
-        // Calculate statistics
-        const stats = calculateStatistics(values);
+        // Calculate statistics for first analysis (or could show combined)
+        const stats = calculateStatistics(analysisDatasets[0].values);
         updateStatistics(stats);
         
-        // Render histogram
-        renderHistogram(values, bins, parameter);
+        // Render histogram with multiple datasets
+        renderHistogram(analysisDatasets, bins, parameter);
         
         // Hide loading indicator after rendering
         document.getElementById('loadingIndicator').classList.add('d-none');
@@ -672,13 +822,24 @@ function updateStatistics(stats) {
 }
 
 // Render histogram using D3
-function renderHistogram(values, numBins, parameter) {
+function renderHistogram(datasetsInput, numBins, parameter) {
     // Clear previous plot
     d3.select('#histogram').selectAll('*').remove();
     
+    // Handle both old single-dataset and new multi-dataset format
+    const datasets = Array.isArray(datasetsInput) && datasetsInput.length > 0 && datasetsInput[0].values
+        ? datasetsInput
+        : [{ name: 'default', values: datasetsInput }];
+    
     // Set dimensions
     const isSmallScreen = window.innerWidth < 768;
-    const margin = { top: 20, right: 30, bottom: 60, left: 70 };
+    const showLegend = datasets.length > 1;
+    const margin = { 
+        top: 20, 
+        right: showLegend ? 150 : 30, 
+        bottom: 60, 
+        left: 70 
+    };
     const width = Math.min(900, window.innerWidth - 100) - margin.left - margin.right;
     const height = (isSmallScreen ? 350 : 400) - margin.top - margin.bottom;
     
@@ -690,9 +851,13 @@ function renderHistogram(values, numBins, parameter) {
         .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
     
+    // Find global extent across all datasets
+    const allValues = datasets.flatMap(d => d.values);
+    const globalExtent = d3.extent(allValues);
+    
     // Create histogram bins
     const x = d3.scaleLinear()
-        .domain(d3.extent(values))
+        .domain(globalExtent)
         .nice()
         .range([0, width]);
     
@@ -700,26 +865,42 @@ function renderHistogram(values, numBins, parameter) {
         .domain(x.domain())
         .thresholds(x.ticks(numBins));
     
-    const bins = histogram(values);
+    // Create bins for each dataset
+    const allBinnedData = datasets.map(dataset => ({
+        name: dataset.name,
+        bins: histogram(dataset.values)
+    }));
+    
+    // Find max count across all datasets for y-scale
+    const maxCount = d3.max(allBinnedData, d => d3.max(d.bins, bin => bin.length));
     
     const y = d3.scaleLinear()
-        .domain([0, d3.max(bins, d => d.length)])
+        .domain([0, maxCount])
         .nice()
         .range([height, 0]);
     
-    // Add bars
-    svg.selectAll('rect')
-        .data(bins)
-        .enter()
-        .append('rect')
-        .attr('x', d => x(d.x0) + 1)
-        .attr('y', d => y(d.length))
-        .attr('width', d => Math.max(0, x(d.x1) - x(d.x0) - 2))
-        .attr('height', d => height - y(d.length))
-        .attr('fill', '#667eea')
-        .attr('opacity', 0.7)
-        .attr('stroke', 'white')
-        .attr('stroke-width', 1);
+    // Color scale for multiple analyses
+    const colors = ['#667eea', '#f093fb', '#4facfe', '#43e97b', '#fa709a', '#fee140'];
+    
+    // Draw histograms for each dataset
+    datasets.forEach((dataset, idx) => {
+        const bins = allBinnedData[idx].bins;
+        const color = colors[idx % colors.length];
+        
+        svg.selectAll(`.bars-${idx}`)
+            .data(bins)
+            .enter()
+            .append('rect')
+            .attr('class', `bars-${idx}`)
+            .attr('x', d => x(d.x0) + 1)
+            .attr('y', d => y(d.length))
+            .attr('width', d => Math.max(0, x(d.x1) - x(d.x0) - 2))
+            .attr('height', d => height - y(d.length))
+            .attr('fill', color)
+            .attr('opacity', datasets.length > 1 ? 0.5 : 0.7)
+            .attr('stroke', 'white')
+            .attr('stroke-width', 1);
+    });
     
     // Add x-axis
     svg.append('g')
@@ -753,6 +934,32 @@ function renderHistogram(values, numBins, parameter) {
             .tickSize(-width)
             .tickFormat('')
         );
+    
+    // Add legend if multiple datasets
+    if (showLegend) {
+        const legend = svg.append('g')
+            .attr('class', 'legend')
+            .attr('transform', `translate(${width + 20}, 0)`);
+        
+        datasets.forEach((dataset, idx) => {
+            const color = colors[idx % colors.length];
+            const legendRow = legend.append('g')
+                .attr('transform', `translate(0, ${idx * 25})`);
+            
+            legendRow.append('rect')
+                .attr('width', 18)
+                .attr('height', 18)
+                .attr('fill', color)
+                .attr('opacity', 0.5);
+            
+            legendRow.append('text')
+                .attr('x', 24)
+                .attr('y', 9)
+                .attr('dy', '0.35em')
+                .attr('font-size', '12px')
+                .text(formatAnalysisName(dataset.name));
+        });
+    }
 }
 
 // Show error message
