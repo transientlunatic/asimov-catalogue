@@ -718,16 +718,16 @@ function updatePlot() {
                 // Compound dataset: extract the specific parameter column
                 const compoundType = samplesGroup.metadata.compound_type;
                 
-                var parameter_map = new Map();
-                var i = 0;
+                const parameter_map = new Map();
+                let i = 0;
                 for (const member of compoundType.members){
                     parameter_map.set(member.name, i);
                     i++;
                 }
 
-                var paramIndex = parameter_map.get(parameter);
+                const paramIndex = parameter_map.get(parameter);
 
-                if (paramIndex === -1) {
+                if (paramIndex === undefined) {
                     throw new Error(`Parameter ${parameter} not found in dataset`);
                 }
                 
